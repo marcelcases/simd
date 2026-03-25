@@ -1,0 +1,12 @@
+# Binaries
+01_add
+02_sum
+03_clamp
+04_count
+05_softmax
+06_conv
+07_filter
+*.o
+
+# macOS
+.DS_Store
