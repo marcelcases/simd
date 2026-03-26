@@ -7,6 +7,7 @@
 06_conv
 07_filter
 *.o
+*.riscv
 
 # macOS
 .DS_Store

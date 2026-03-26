@@ -2,12 +2,15 @@
 
 A practical guide to writing portable, high-performance SIMD code using the C++26 standard library.
 
+**🚀 New to SIMD?** Start with [QUICK_START.md](QUICK_START.md) for a 5-minute setup guide!
+
 ## Table of Contents
 
 - [Introduction](#introduction)
 - [What is SIMD?](#what-is-simd)
 - [The std::simd Library](#the-stdsimd-library)
 - [Building and Running Examples](#building-and-running-examples)
+- [Understanding Vector Instructions](#understanding-vector-instructions-low-level-details) ⭐ New!
 - [Basic Examples](#basic-examples)
   - [Example 1: Vector Add](#example-1-vector-add)
   - [Example 2: Sum Reduction](#example-2-sum-reduction)
@@ -19,6 +22,13 @@ A practical guide to writing portable, high-performance SIMD code using the C++2
   - [Example 7: 3x3 Image Filter](#example-7-3x3-image-filter)
 - [Key Takeaways](#key-takeaways)
 - [Appendix: Quick Reference](#appendix-quick-reference)
+
+## Additional Resources
+
+- **[QUICK_START.md](QUICK_START.md)** ⭐ - Get started in 5 minutes with platform-specific setup
+- **[ASSEMBLY_EXAMPLES.md](ASSEMBLY_EXAMPLES.md)** - Annotated assembly code with detailed explanations
+- **[RISCV_STATUS.md](RISCV_STATUS.md)** - RISC-V vectorization status and limitations
+- **[RISCV_SETUP.md](RISCV_SETUP.md)** - RISC-V emulation setup guide
 
 ---
 
@@ -144,24 +154,21 @@ make
 
 #### RISC-V Emulation
 
-For testing on RISC-V with vector extensions (RVV), see **[RISCV_SETUP.md](RISCV_SETUP.md)** for detailed instructions on:
-- QEMU user-mode emulation (quickest setup)
-- Cross-compilation with Docker
-- Spike ISA simulator (cycle-accurate)
+**⚠️ Important:** GCC 13's `std::experimental::simd` does not yet support RISC-V Vector extensions (RVV). The code compiles and runs but falls back to scalar operations. See **[RISCV_STATUS.md](RISCV_STATUS.md)** for details.
 
-Quick start with Docker:
+Quick start on Ubuntu:
 ```bash
-# Install QEMU
-brew install qemu  # macOS
+# Install QEMU and RISC-V toolchain
+sudo apt install -y qemu-user-static gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
 
-# Compile in Docker container
-docker run -it -v $(pwd):/work riscv64/ubuntu:22.04 bash
-apt-get update && apt-get install -y g++-12
-g++-12 -std=c++2b -O3 -march=rv64gcv -static 01_add.cpp -o 01_add.riscv
+# Build RISC-V binaries
+make riscv
 
-# Run with QEMU (outside container)
-qemu-riscv64 -cpu rv64,v=true,vlen=128 ./01_add.riscv
+# Run examples (currently uses scalar fallback, SIMD width = 1)
+make run-riscv-128
 ```
+
+For detailed setup instructions and alternative approaches, see **[RISCV_SETUP.md](RISCV_SETUP.md)**.
 
 ### Compiler Flags
 
@@ -172,6 +179,7 @@ The Makefile automatically detects your platform and uses appropriate flags:
 | Linux (AVX-512) | `g++` | `-march=native -mavx512f -mavx512vl` |
 | macOS (ARM) | `g++-15` | `-mcpu=apple-m1` |
 | macOS (Intel) | `g++-15` | `-march=native` |
+| RISC-V (emulated) | `riscv64-linux-gnu-g++` | `-march=rv64gcv -static` |
 
 Common flags for all platforms:
 - `-std=c++2b`: C++26 working draft
@@ -228,38 +236,302 @@ This is why all our scalar functions include a pragma to disable auto-vectorizat
 
 ### SIMD Instruction Verification
 
-To confirm SIMD is enabled, inspect the generated assembly. On macOS/ARM use `otool -tv` or generate assembly with `-S`:
+Understanding what instructions your CPU actually executes is crucial for performance debugging. The same `std::simd` code compiles to completely different assembly on different architectures.
 
+#### How to Generate and Inspect Assembly
+
+**ARM NEON (macOS/Apple Silicon):**
 ```bash
 g++-15 -std=c++2b -O3 -mcpu=apple-m1 -S 01_add.cpp -o 01_add.s
 grep -E 'fadd\s+v[0-9]+\.4s' 01_add.s   # Look for NEON vector ops
 ```
 
-On Linux/x86 use `objdump -d` or generate assembly:
-
+**x86 AVX-512 (Linux/Intel):**
 ```bash
 g++ -std=c++2b -O3 -march=native -S 01_add.cpp -o 01_add.s
 grep -E 'vaddps|vmulps' 01_add.s        # Look for AVX vector ops
 ```
 
-#### Verified Instructions
+**RISC-V RVV (emulated):**
+```bash
+make verify-riscv  # Generates 01_add.s and checks for RVV instructions
+grep -E 'vle32\.v|vfadd\.vv' 01_add.s
+```
 
-| Example | ARM NEON (M1 Pro) | x86 AVX-512 (MN5) |
-|---------|-------------------|-------------------|
-| 01_add | `fadd v30.4s, v31.4s, v30.4s` | `vaddps zmm` |
-| 02_sum | `fadd v31.4s, v31.4s, v4.4s` | `vaddps zmm` |
-| 03_clamp | `fcmgt v3.4s, v30.4s, v31.4s` | `vcmpps` + `vblendps` |
-| 04_count | `fcmgt` + `addp v31.2s` | `vcmpps` + `vpopcntd` |
-| 05_softmax | `fmaxnm v31.4s, v31.4s, v4.4s` | `vmaxps zmm` |
-| 06_conv | `fmla v31.4s, v27.4s, v30.4s` | `vfmadd231ps zmm` |
-| 07_filter | `fadd` + `fdiv v17.4s` | `vaddps` + `vdivps` |
+#### Verified Instructions by Architecture
 
-**Key ARM NEON patterns:**
-- `.4s` suffix = 4 single-precision floats (128-bit register)
-- `fadd/fmul` = vector arithmetic
-- `fmla` = fused multiply-add (a*b + c in one instruction)
-- `fcmgt` = compare greater than (returns mask)
-- `bsl` = bitwise select (for masked operations)
+| Example | ARM NEON (M1 Pro) | x86 AVX-512 (MN5) | RISC-V RVV |
+|---------|-------------------|-------------------|------------|
+| 01_add | `fadd v30.4s, v31.4s, v30.4s` | `vaddps zmm` | `fadd.s` ⚠️ |
+| 02_sum | `fadd v31.4s, v31.4s, v4.4s` | `vaddps zmm` | `fadd.s` ⚠️ |
+| 03_clamp | `fcmgt v3.4s, v30.4s, v31.4s` | `vcmpps` + `vblendps` | `flt.s` ⚠️ |
+| 04_count | `fcmgt` + `addp v31.2s` | `vcmpps` + `vpopcntd` | `flt.s` ⚠️ |
+| 05_softmax | `fmaxnm v31.4s, v31.4s, v4.4s` | `vmaxps zmm` | `fmax.s` ⚠️ |
+| 06_conv | `fmla v31.4s, v27.4s, v30.4s` | `vfmadd231ps zmm` | `fmadd.s` ⚠️ |
+| 07_filter | `fadd` + `fdiv v17.4s` | `vaddps` + `vdivps` | `fadd.s` ⚠️ |
+
+⚠️ **Note**: RISC-V currently uses scalar instructions due to lack of `std::simd` support for RVV. See [RISCV_STATUS.md](RISCV_STATUS.md).
+
+---
+
+## Understanding Vector Instructions (Low-Level Details)
+
+This section explains what's actually happening at the CPU instruction level when you use `std::simd`. Each architecture has different instruction sets, register layouts, and naming conventions.
+
+### Architecture Comparison Table
+
+| Feature | ARM NEON | x86 AVX-512 | RISC-V RVV |
+|---------|----------|-------------|------------|
+| **Register width** | 128-bit | 512-bit | Variable (VLEN) |
+| **Floats per register** | 4 | 16 | VLEN/32 |
+| **Register names** | `v0`-`v31` | `zmm0`-`zmm31` | `v0`-`v31` |
+| **Load/Store** | `ld1`/`st1` | `vmovups`/`vmovaps` | `vle32.v`/`vse32.v` |
+| **Add** | `fadd` | `vaddps` | `vfadd.vv` |
+| **Multiply** | `fmul` | `vmulps` | `vfmul.vv` |
+| **FMA** | `fmla` | `vfmadd231ps` | `vfmacc.vv` |
+
+### ARM NEON Instructions (128-bit, 4 floats)
+
+NEON uses a clear syntax: `instruction destination, source1, source2`
+
+**Register naming:**
+- `v0` to `v31` = 128-bit vector registers
+- `.4s` suffix = interpret as 4 single-precision floats
+- `.2d` suffix = interpret as 2 double-precision floats
+
+**Example from `01_add.cpp` (vector addition):**
+```assembly
+# Load 4 floats from memory into v30
+ld1 {v30.4s}, [x1]          # x1 = pointer to array
+
+# Load 4 floats from memory into v31  
+ld1 {v31.4s}, [x2]          # x2 = pointer to second array
+
+# Add all 4 lanes simultaneously: v30[i] = v31[i] + v30[i]
+fadd v30.4s, v31.4s, v30.4s
+
+# Store 4 floats back to memory
+st1 {v30.4s}, [x0]          # x0 = pointer to destination
+```
+
+**Visual representation:**
+```
+Register v31: [a0, a1, a2, a3]  (4 floats loaded from memory)
+Register v30: [b0, b1, b2, b3]  (4 floats loaded from memory)
+              +  +  +  +        (single fadd instruction)
+Result v30:   [c0, c1, c2, c3]  (4 results computed in parallel)
+```
+
+**Common NEON instructions:**
+- `ld1 {v.4s}, [x]` - Load 4 floats from address in register x
+- `st1 {v.4s}, [x]` - Store 4 floats to address in register x
+- `fadd v.4s, v1.4s, v2.4s` - Vector add: v = v1 + v2
+- `fmul v.4s, v1.4s, v2.4s` - Vector multiply: v = v1 * v2
+- `fmla v.4s, v1.4s, v2.4s` - Fused multiply-add: v = v + (v1 * v2)
+- `fcmgt v.4s, v1.4s, v2.4s` - Compare greater: v = (v1 > v2) ? all-1s : all-0s
+- `fmax v.4s, v1.4s, v2.4s` - Element-wise maximum
+- `fdiv v.4s, v1.4s, v2.4s` - Element-wise division
+
+**Example from `06_conv.cpp` (FMA operation):**
+```assembly
+# Fused multiply-add: v31 = v31 + (v27 * v30)
+fmla v31.4s, v27.4s, v30.4s
+```
+This is equivalent to 4 operations done in one instruction:
+```
+v31[0] += v27[0] * v30[0]
+v31[1] += v27[1] * v30[1]
+v31[2] += v27[2] * v30[2]
+v31[3] += v27[3] * v30[3]
+```
+
+### x86 AVX-512 Instructions (512-bit, 16 floats)
+
+AVX-512 has more complex syntax with Intel's legacy from SSE/AVX. The `v` prefix indicates vector instructions.
+
+**Register naming:**
+- `zmm0` to `zmm31` = 512-bit vector registers (AVX-512)
+- `ymm0` to `ymm31` = 256-bit vector registers (AVX/AVX2, lower 256 bits of zmm)
+- `xmm0` to `xmm31` = 128-bit vector registers (SSE, lower 128 bits of zmm)
+
+**Example from `01_add.cpp` (vector addition):**
+```assembly
+# Load 16 floats (64 bytes) from memory into zmm1
+vmovups zmm1, zmmword ptr [rsi + 4*rax]    # rsi = base address, rax = index
+
+# Load 16 floats into zmm0
+vmovups zmm0, zmmword ptr [rdi + 4*rax]    # rdi = base address
+
+# Add all 16 lanes simultaneously
+vaddps zmm0, zmm1, zmm0                     # zmm0 = zmm1 + zmm0
+
+# Store 16 floats back to memory
+vmovups zmmword ptr [rdi + 4*rax], zmm0
+```
+
+**Visual representation:**
+```
+Register zmm1: [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15]
+Register zmm0: [b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15]
+               +   +   +   +   +   +   +   +   +   +   +    +    +    +    +    +
+Result zmm0:   [c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15]
+```
+
+**Common AVX-512 instructions:**
+- `vmovups zmm, [addr]` - Unaligned load (16 floats)
+- `vmovaps zmm, [addr]` - Aligned load (faster, requires 64-byte alignment)
+- `vmovups [addr], zmm` - Unaligned store
+- `vaddps zmm0, zmm1, zmm2` - Vector add: zmm0 = zmm1 + zmm2
+- `vmulps zmm0, zmm1, zmm2` - Vector multiply: zmm0 = zmm1 * zmm2
+- `vfmadd231ps zmm0, zmm1, zmm2` - FMA: zmm0 = zmm0 + (zmm1 * zmm2)
+- `vcmpps k0, zmm1, zmm2, imm8` - Compare, result in mask register k0
+- `vblendmps zmm0 {k1}, zmm1, zmm2` - Conditional blend using mask k1
+- `vmaxps zmm0, zmm1, zmm2` - Element-wise maximum
+- `vpopcntd zmm0, zmm1` - Population count (count 1-bits)
+
+**Mask registers (AVX-512 feature):**
+AVX-512 has dedicated mask registers `k0` to `k7` for predication:
+```assembly
+# Compare: create mask where zmm1 > zmm2
+vcmpps k1, zmm1, zmm2, 30              # 30 = greater-than predicate
+
+# Conditionally add: only update lanes where k1 is true
+vaddps zmm0 {k1}, zmm3, zmm4           # zmm0[i] = (k1[i] ? zmm3[i]+zmm4[i] : zmm0[i])
+```
+
+**Example from `06_conv.cpp` (FMA operation):**
+```assembly
+# Fused multiply-add: zmm0 = zmm0 + (zmm1 * zmm2)
+vfmadd231ps zmm0, zmm1, zmm2
+```
+This is equivalent to 16 operations in one instruction!
+
+### RISC-V Vector (RVV) Instructions (Variable VLEN)
+
+**⚠️ Important**: GCC 13's `std::simd` doesn't support RVV yet, so these instructions are NOT currently generated. However, here's what WOULD be generated when support is added:
+
+**Register naming:**
+- `v0` to `v31` = vector registers (width determined by VLEN parameter)
+- VLEN can be 128, 256, 512, or 1024 bits (configurable)
+- Each instruction can operate on different SEW (selected element width): 8, 16, 32, or 64 bits
+
+**Unique RVV feature: Dynamic vector length**
+Unlike NEON (fixed 128-bit) and AVX-512 (fixed 512-bit), RISC-V vectors have runtime-configurable length:
+```assembly
+# Set vector length: how many 32-bit elements fit in a vector register?
+vsetvli t0, a0, e32, m1    # t0 = min(a0, VLEN/32), e32 = 32-bit elements, m1 = 1 register
+```
+
+**Example of what `01_add.cpp` SHOULD generate (not currently working):**
+```assembly
+# Set vector type: 32-bit float elements
+vsetvli t0, a2, e32, m1       # t0 = actual vector length used
+
+# Load vector of floats from memory
+vle32.v v1, (a1)              # a1 = pointer to array
+
+# Load second vector
+vle32.v v2, (a0)              # a0 = pointer to second array
+
+# Add vectors element-wise
+vfadd.vv v3, v1, v2           # v3[i] = v1[i] + v2[i]
+
+# Store result back to memory
+vse32.v v3, (a0)              # Store to destination
+```
+
+**What we ACTUALLY get (scalar fallback):**
+```assembly
+# Current GCC 13 output - no vectorization!
+flw fa5, 0(a0)                # Load single float
+flw fa4, 0(a1)                # Load single float
+fadd.s fa5, fa5, fa4          # Scalar add (only 1 float!)
+fsw fa5, 0(a0)                # Store single float
+```
+
+**Common RVV instructions (when supported):**
+- `vsetvli rd, rs1, vtypei` - Configure vector length and element type
+- `vle32.v vd, (rs1)` - Load vector of 32-bit elements
+- `vse32.v vs3, (rs1)` - Store vector of 32-bit elements
+- `vfadd.vv vd, vs2, vs1` - Vector + vector addition
+- `vfmul.vv vd, vs2, vs1` - Vector × vector multiplication
+- `vfmacc.vv vd, vs1, vs2` - FMA: vd = vd + (vs1 * vs2)
+- `vmfgt.vf vd, vs2, fs1` - Compare vector > scalar, result is mask
+- `vfmax.vv vd, vs2, vs1` - Element-wise maximum
+
+**RVV naming conventions:**
+- `.vv` = vector-vector operation (both operands are vectors)
+- `.vf` = vector-scalar operation (one vector, one scalar/float register)
+- `.vi` = vector-immediate operation (vector and immediate constant)
+- `e32` = 32-bit elements
+- `m1` = use 1 vector register (can be m2, m4, m8 for wider operations)
+
+### Performance Comparison: Why Vector Width Matters
+
+**Same operation (`c[i] = a[i] + b[i]`) on different architectures:**
+
+| Architecture | Registers | Width | Floats/Instruction | Instructions for 16 floats |
+|--------------|-----------|-------|-------------------|---------------------------|
+| **Scalar** | Floating-point | 32-bit | 1 | 16 |
+| **ARM NEON** | v0-v31 | 128-bit | 4 | 4 |
+| **x86 AVX-512** | zmm0-zmm31 | 512-bit | 16 | 1 |
+| **RISC-V (VLEN=128)** | v0-v31 | 128-bit | 4 | 4 |
+| **RISC-V (VLEN=512)** | v0-v31 | 512-bit | 16 | 1 |
+
+This is why AVX-512 can achieve higher theoretical speedups than NEON—it processes 4x more data per instruction!
+
+### Debugging Tips
+
+**1. Verify vectorization is happening:**
+```bash
+# Look for vector instructions in assembly
+grep -E 'fadd.*\.4s|vaddps|vfadd\.vv' example.s
+```
+
+**2. Check register usage:**
+```bash
+# ARM: Should see v0-v31, NOT s0-s31 (scalar)
+grep -E '\sv[0-9]+\.' example.s
+
+# x86: Should see zmm/ymm, NOT xmm (smaller) or scalar
+grep -E 'zmm|ymm' example.s
+```
+
+**3. Count vector operations:**
+```bash
+# How many vector adds?
+grep -c 'vaddps' example.s        # x86
+grep -c 'fadd.*\.4s' example.s    # ARM
+```
+
+**4. Look for loop unrolling:**
+Modern compilers often unroll loops to hide latency:
+```assembly
+# Unrolled loop processing 4 vectors (16 floats) per iteration on NEON
+ld1 {v0.4s}, [x1], #16
+ld1 {v1.4s}, [x1], #16
+ld1 {v2.4s}, [x1], #16
+ld1 {v3.4s}, [x1], #16
+fadd v0.4s, v0.4s, v4.4s
+fadd v1.4s, v1.4s, v5.4s
+fadd v2.4s, v2.4s, v6.4s
+fadd v3.4s, v3.4s, v7.4s
+```
+
+**5. Memory alignment matters:**
+```bash
+# Aligned loads are faster
+vmovaps zmm0, [addr]     # Fast: requires 64-byte alignment
+vmovups zmm0, [addr]     # Slower: works with any alignment
+```
+
+### Want More Detail?
+
+For complete annotated assembly examples showing exactly what each instruction does, see **[ASSEMBLY_EXAMPLES.md](ASSEMBLY_EXAMPLES.md)**. This document includes:
+- Line-by-line assembly annotations for all three architectures
+- Visual representations of what happens in each register
+- Performance comparisons (instructions per 64 floats)
+- Real assembly output from compiling the examples
 
 ---
 
