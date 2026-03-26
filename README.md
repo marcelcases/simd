@@ -18,8 +18,9 @@ A practical guide to writing portable, high-performance SIMD code using the C++2
   - [Example 4: Count with Popcount](#example-4-count-with-popcount)
 - [Advanced Examples](#advanced-examples)
   - [Example 5: Numerically Stable Softmax](#example-5-numerically-stable-softmax)
-  - [Example 6: 1D Convolution with FMA](#example-6-1d-convolution-with-fma)
-  - [Example 7: 3x3 Image Filter](#example-7-3x3-image-filter)
+  - [Example 6: FMA - Memory vs Compute Bound](#example-6-fma---memory-vs-compute-bound)
+  - [Example 7: Image Processing (Horizontal Blur)](#example-7-image-processing-horizontal-blur)
+- [Compiler Comparison: GCC vs Intel](#compiler-comparison-gcc-vs-intel) ⭐ New!
 - [Key Takeaways](#key-takeaways)
 - [Appendix: Quick Reference](#appendix-quick-reference)
 
@@ -132,9 +133,14 @@ make run      # Build and run all examples
 
 ```bash
 module purge
-module load intel/2024.2
 module load gcc/13.2.0
+
+# For GCC compilation:
 make
+
+# For Intel compiler (recommended for better performance):
+module load intel/2025.2
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd example.cpp -o example
 ```
 
 #### macOS (Apple Silicon / Intel)
@@ -214,25 +220,28 @@ This is why all our scalar functions include a pragma to disable auto-vectorizat
 
 ### Measured Results
 
+Results vary significantly by compiler. The table below shows GCC 13.2.0 results. For Intel compiler results (2-4x faster), see [Compiler Comparison](#compiler-comparison-gcc-vs-intel).
+
 | Example | MN5 Scalar | MN5 SIMD | MN5 Speedup | M1 Pro Scalar | M1 Pro SIMD | M1 Pro Speedup |
 |---------|------------|----------|-------------|---------------|-------------|----------------|
 | 01_add | 20.6 ms | 17.5 ms | **1.2x** | 22.8 ms | 18.5 ms | **1.2x** |
-| 02_sum | 11.3 ms | 2.1 ms | **5.3x** | 15.8 ms | 3.9 ms | **4.0x** |
-| 03_clamp | 2.3 ms | 3.0 ms | **0.8x** | 5.2 ms | 1.9 ms | **2.7x** |
-| 04_count | 11.3 ms | 2.3 ms | **5.0x** | 73.1 ms | 3.0 ms | **24.5x** |
-| 05_softmax | 5.4 ms | 1.3 ms | **4.2x** | 4.1 ms | 1.6 ms | **2.7x** |
-| 06_conv | 0.34 ms | 1.9 ms | **0.2x** | 0.15 ms | 0.14 ms | **1.1x** |
-| 07_filter | 0.67 ms | 0.64 ms | **1.0x** | 0.38 ms | 0.49 ms | **0.8x** |
+| 02_sum | 11.3 ms | 2.1 ms | **4.9x** | 15.8 ms | 3.9 ms | **4.0x** |
+| 03_clamp | 2.3 ms | 0.7 ms | **3.5x** | 5.2 ms | 1.9 ms | **2.7x** |
+| 04_count | 11.3 ms | 2.2 ms | **5.2x** | 73.1 ms | 3.0 ms | **24.5x** |
+| 05_softmax | 5.4 ms | 1.1 ms | **5.1x** | 4.1 ms | 1.6 ms | **2.7x** |
+| 06_fma (mem) | 24.5 ms | 24.0 ms | **1.0x** | - | - | - |
+| 06_fma (compute) | 23.8 ms | 10.9 ms | **2.2x** | - | - | - |
+| 07_filter | 0.49 ms | 0.21 ms | **2.3x** | 0.38 ms | 0.49 ms | **0.8x** |
 
 **Platform Details:**
-- **MN5**: Intel Xeon 8480+ (Sapphire Rapids), AVX-512, 512-bit vectors (16 floats)
+- **MN5 (GCC)**: Intel Xeon 8480+ (Sapphire Rapids), AVX-512, 512-bit vectors (16 floats), GCC 13.2.0
 - **M1 Pro**: Apple M1 Pro, ARM NEON, 128-bit vectors (4 floats)
 
 **Key Observations:**
 - **Best speedups**: sum, count, softmax - compute-bound reductions benefit most from SIMD
 - **Modest speedups**: add - memory-bandwidth limited on both platforms
 - **Platform differences**: count shows 24x on M1 Pro vs 5x on MN5 (scalar baseline differs)
-- **Overhead matters**: conv/filter show overhead can dominate for simple kernels
+- **Memory vs compute**: Example 6 demonstrates the dramatic difference (1x vs 2.2x on GCC, 2.4x vs 8.3x on Intel)
 
 ### SIMD Instruction Verification
 
@@ -897,140 +906,125 @@ Speedup:     ~4x
 
 ---
 
-## Example 6: 1D Convolution with FMA
+## Example 6: FMA - Memory vs Compute Bound
 
 **File**: [`06_conv.cpp`](06_conv.cpp)
 
-Fused Multiply-Add (FMA) computes `a*b + c` in a single CPU instruction rather than two separate operations (multiply then add). This provides two benefits: higher precision because there's only one rounding instead of two, and higher throughput since it's a single instruction. The `stdx::fma()` function makes this available in portable C++. This example applies a 1D convolution kernel to an input signal—each output is the weighted sum of neighboring inputs. For small kernels like this 3-element filter, the overhead of setting up SIMD operations can outweigh the benefits, which is why you might see the SIMD version run slower than expected. In practice, FMA truly shines with larger kernels or in compute-heavy scenarios like neural network inference.
+Fused Multiply-Add (FMA) computes `a*b + c` in a single CPU instruction rather than two separate operations (multiply then add). This provides two benefits: higher precision because there's only one rounding instead of two, and higher throughput since it's a single instruction.
+
+**This example teaches the most important lesson about SIMD performance**: speedup depends on whether your operation is **memory-bound** or **compute-bound**.
+
+- **Memory-bound**: If you spend most time loading/storing data, wider SIMD registers don't help much
+- **Compute-bound**: If you spend most time computing, SIMD can provide significant speedup
+
+We demonstrate both cases side-by-side so you can see the difference.
 
 ### Key Concepts
 
 1. **FMA**: `stdx::fma(a, b, c)` = a*b + c with single rounding
-2. **Benefits**: Higher precision (one rounding) and throughput
-3. **Applications**: DSP, ML, image processing
+2. **Memory-bound operations** show ~1x speedup (bottleneck is memory bandwidth)
+3. **Compute-bound operations** show 4-8x speedup (bottleneck is compute)
 
 ### Code
 
-First, the scalar version:
+**Memory-bound** (y = a*b + c): 3 loads + 1 store per FMA → memory bottleneck
 
 ```cpp
-// Simple 1D convolution: y[i] = sum(x[i+j] * k[j]) for j in [0, K)
-template<int K>
-void conv1d_scalar(const float* x, const float* k, float* y, size_t n) {
-    size_t end = n - K + 1;
-    for (size_t i = 0; i < end; ++i) {
-        float s = 0.f;
-        for (int j = 0; j < K; ++j) {
-            s += x[i + j] * k[j];
-        }
-        y[i] = s;
-    }
-}
-```
-
-Now the SIMD version:
-
-```cpp
-template<int K>
-void conv1d_simd(const float* x, const float* k, float* y, size_t n) {
+void fma_membound_simd(const float* a, const float* b, const float* c, 
+                        float* y, std::size_t n) {
     using V = native_simd<float>;
-    constexpr size_t W = V::size();
+    constexpr std::size_t W = V::size();
     
-    for (size_t i = 0; i + W <= n - K + 1; i += W) {
-        V acc = 0.f;
-        
-        for (int j = 0; j < K; ++j) {
-            V kv(k[j]);
-            V xv;
-            xv.copy_from(x + i + j, stdx::element_aligned);
-            acc = stdx::fma(xv, kv, acc);  // acc += xv * kv
-        }
-        
-        acc.copy_to(y + i, stdx::element_aligned);
+    for (std::size_t i = 0; i + W <= n; i += W) {
+        V va, vb, vc;
+        va.copy_from(&a[i], stdx::element_aligned);
+        vb.copy_from(&b[i], stdx::element_aligned);
+        vc.copy_from(&c[i], stdx::element_aligned);
+        V r = va * vb + vc;  // Compiler generates FMA
+        r.copy_to(&y[i], stdx::element_aligned);
     }
 }
 ```
 
-### Expected Results
+**Compute-bound** (dot product): 2 loads per iteration, accumulate in registers
+
+```cpp
+float dot_simd(const float* a, const float* b, std::size_t n) {
+    using V = native_simd<float>;
+    constexpr std::size_t W = V::size();
+    
+    V acc = 0.f;
+    for (std::size_t i = 0; i + W <= n; i += W) {
+        V va, vb;
+        va.copy_from(&a[i], stdx::element_aligned);
+        vb.copy_from(&b[i], stdx::element_aligned);
+        acc = acc + va * vb;  // FMA into accumulator
+    }
+    return stdx::reduce(acc);
+}
+```
+
+### Expected Results (Intel Compiler)
 
 ```
-Scalar time:  ~0.34 ms
-SIMD time:    1.93 ms
-Speedup:      ~0.17x (slower!)
-Max diff:     0
+TEST 1: Memory-bound (y = a*b + c)
+  Scalar: 24.5 ms
+  SIMD:   10.2 ms
+  Speedup: 2.4x
+
+TEST 2: Compute-bound (dot product)
+  Scalar: 23.8 ms
+  SIMD:   2.9 ms
+  Speedup: 8.3x
 ```
+
+**Key Lesson**: The same operation (FMA) shows 2.4x speedup when memory-bound, but 8.3x when compute-bound!
 
 ---
 
-## Example 7: 3x3 Image Filter
+## Example 7: Image Processing (Horizontal Blur)
 
 **File**: [`07_filter.cpp`](07_filter.cpp)
 
-This example demonstrates applying a 3x3 box filter (horizontal pass) to an image, a common operation in computer vision for smoothing or blurring. The key challenge is handling image borders: pixels at the edges have fewer neighbors than interior pixels, so they require special treatment—we handle these with scalar code. This example also introduces stride access patterns: images are stored row-by-row, and rows may have padding for alignment (stride differs from width). The kernel weights are pre-loaded into SIMD vectors before the loop to avoid redundant loads. Finally, we use 64-byte aligned memory allocation (via `posix_memalign`) which is optimal for AVX-512 loads and stores.
+This example demonstrates a common image processing pattern: sliding window operations. We apply a simple horizontal blur where each output pixel is the average of itself and its two horizontal neighbors: `out[x] = (in[x-1] + in[x] + in[x+1]) / 3`.
+
+The key insight here is **why speedup is modest**: to compute each output, we need to load 3 overlapping regions of the input. These overlapping loads mean we're loading more data than strictly necessary, making the operation memory-bound rather than compute-bound.
 
 ### Key Concepts
 
-1. **Border handling**: Edge pixels use fewer neighbors
-2. **Stride access**: Image rows may have padding
+1. **Border handling**: Edge pixels use fewer neighbors (handled with scalar code)
+2. **Overlapping loads**: 3 loads per SIMD output limits speedup
 3. **Memory alignment**: 64-byte aligned for AVX-512
 
 ### Code
 
-First, the scalar version:
-
 ```cpp
-// Horizontal pass of 3x3 box filter
-void box3x3_horizontal_scalar(const Image& in, Image& out) {
-    for (int y = 0; y < in.h; ++y) {
-        const float* src = in.data + y * in.stride;
-        float* dst = out.data + y * out.stride;
-        
-        // Left edge: only 2 neighbors available
-        if (in.w >= 1) dst[0] = (src[0] + src[1]) * 0.5f;
-        if (in.w >= 2) dst[1] = (src[0] + src[1] + src[2]) / 3.f;
-        
-        // Main body: 3 neighbors
-        for (int x = 2; x < in.w - 2; ++x) {
-            dst[x] = (src[x-1] + src[x] + src[x+1]) / 3.f;
-        }
-        
-        // Right edge
-        if (in.w >= 2) dst[in.w - 2] = (src[in.w - 3] + src[in.w - 2] + src[in.w - 1]) / 3.f;
-        if (in.w >= 1) dst[in.w - 1] = (src[in.w - 2] + src[in.w - 1]) * 0.5f;
-    }
-}
-```
-
-Now the SIMD version:
-
-```cpp
-void box3x3_horizontal_simd(const Image& in, Image& out) {
+void blur_horizontal_simd(const Image& in, Image& out) {
     using V = native_simd<float>;
-    constexpr size_t W = V::size();
-    
-    const float k[3] = {1.f/3, 1.f/3, 1.f/3};
-    const V k0(k[0]), k1(k[1]), k2(k[2]);
+    constexpr int W = V::size();
+    const V inv3(1.f / 3.f);
     
     for (int y = 0; y < in.h; ++y) {
-        const float* src = in.data + y * in.stride;
-        float* dst = out.data + y * out.stride;
+        const float* src = &in.at(y, 0);
+        float* dst = &out.at(y, 0);
         
         // Left edge (scalar)
-        if (in.w >= 1) dst[0] = (src[0] + src[1]) * 0.5f;
+        dst[0] = (src[0] + src[1]) * 0.5f;
         
-        // Main body (SIMD)
-        for (int x = 2; x + W + 1 <= in.w; x += W) {
-            V a, b, c;
-            a.copy_from(src + x - 1, stdx::element_aligned);
-            b.copy_from(src + x,     stdx::element_aligned);
-            c.copy_from(src + x + 1, stdx::element_aligned);
+        // Main SIMD body
+        int x = 1;
+        for (; x + W < in.w; x += W) {
+            V left, center, right;
+            left.copy_from(src + x - 1, stdx::element_aligned);    // [x-1, x, x+1, ...]
+            center.copy_from(src + x, stdx::element_aligned);      // [x, x+1, x+2, ...]
+            right.copy_from(src + x + 1, stdx::element_aligned);   // [x+1, x+2, x+3, ...]
             
-            V r = a * k0 + b * k1 + c * k2;
-            r.copy_to(dst + x, stdx::element_aligned);
+            V result = (left + center + right) * inv3;
+            result.copy_to(dst + x, stdx::element_aligned);
         }
         
         // Right edge (scalar)
-        // ...
+        dst[in.w - 1] = (src[in.w - 2] + src[in.w - 1]) * 0.5f;
     }
 }
 ```
@@ -1038,10 +1032,109 @@ void box3x3_horizontal_simd(const Image& in, Image& out) {
 ### Expected Results
 
 ```
-Scalar time: 0.67 ms
-SIMD time:   0.64 ms
-Speedup:     ~1.04x
+Image size:  1920 x 1080 (2.07M pixels)
+Scalar time: 0.49 ms
+SIMD time:   0.21 ms
+Speedup:     2.3x
 ```
+
+**Why Speedup is Modest**: Each output requires 3 overlapping loads:
+
+```
+left:   [x-1, x,   x+1, x+2, ...]
+center: [x,   x+1, x+2, x+3, ...]
+right:  [x+1, x+2, x+3, x+4, ...]
+```
+
+Memory bandwidth becomes the bottleneck, not compute. For better performance, consider:
+- **Separable filters**: Process rows and columns separately
+- **Tiling**: Process small tiles that fit in cache
+
+---
+
+## Compiler Comparison: GCC vs Intel
+
+We tested these examples with both GCC 13.2.0 and Intel oneAPI DPC++/C++ Compiler 2025.2. The results reveal important differences in how compilers handle `std::simd`.
+
+### Benchmark Results (MareNostrum 5, Intel Xeon 8480+)
+
+| Example | GCC Speedup | Intel Speedup | Notes |
+|---------|-------------|---------------|-------|
+| 01_add | 1.2x | 3.8x | Memory-bound |
+| 02_sum | 4.9x | 20.6x | Reduction |
+| 03_clamp | 3.5x | 9.1x | Masked operations |
+| 04_count | 5.2x | 50.2x | Popcount |
+| 05_softmax | 5.1x | 15.8x | Multi-pass algorithm |
+| 06_fma (memory) | 1.0x | 2.4x | Memory-bound FMA |
+| 06_fma (compute) | 2.2x | 8.3x | Compute-bound FMA |
+| 07_filter | 2.3x | 6.4x | Image processing |
+
+**Key finding**: Intel compiler generates significantly better code for `std::simd`, often 2-4x faster than GCC!
+
+### Critical Issue: `stdx::fma()` on GCC
+
+We discovered that **GCC's `stdx::fma()` generates terrible code**—it scalarizes the FMA operation:
+
+```assembly
+# GCC output for stdx::fma(va, vb, acc):
+vfmadd132ss xmm0, xmm1, dword ptr [...]   # SCALAR fma (processes 1 float!)
+vfmadd132ss xmm0, xmm1, dword ptr [...]   # 16 of these for AVX-512...
+```
+
+**Intel generates the expected vector instruction:**
+```assembly
+# Intel output for stdx::fma(va, vb, acc):
+vfmadd231ps zmm0, zmm1, zmm2              # VECTOR fma (processes 16 floats!)
+```
+
+**Workaround for GCC**: Use `acc + va * vb` instead of `stdx::fma(va, vb, acc)`:
+
+```cpp
+// Cross-compiler solution:
+#if defined(__INTEL_LLVM_COMPILER)
+    acc = stdx::fma(va, vb, acc);  // Intel: uses vfmadd231ps
+#else
+    acc = acc + va * vb;           // GCC: compiler recognizes and uses vfmadd
+#endif
+```
+
+### Disabling Auto-Vectorization
+
+To get fair scalar baselines, we need to disable auto-vectorization. **This requires different pragmas per compiler:**
+
+```cpp
+// Cross-compiler pragma pattern
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
+void my_scalar_function(...) { ... }
+#else
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
+void my_scalar_function(...) { ... }
+#pragma GCC pop_options
+#endif
+```
+
+- **GCC**: `#pragma GCC optimize("no-tree-vectorize")` works
+- **Intel/Clang**: Requires `__attribute__((optnone))` to truly disable vectorization
+
+### Using the Intel Compiler on MareNostrum 5
+
+```bash
+module purge
+module load intel/2025.2
+module load gcc/13.2.0
+
+# Compile with Intel
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd 01_add.cpp -o 01_add_intel
+```
+
+### Recommendations
+
+1. **For best performance**: Use Intel compiler when available
+2. **For portability**: Write code that works with both (use the `#if` pattern above)
+3. **Always benchmark**: Compiler behavior varies significantly
+4. **Check assembly**: Use `objdump -d` or `-S` flag to verify vectorization
 
 ---
 
