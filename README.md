@@ -20,6 +20,7 @@ A practical guide to writing portable, high-performance SIMD code using the C++2
   - [Example 5: Numerically Stable Softmax](#example-5-numerically-stable-softmax)
   - [Example 6: FMA - Memory vs Compute Bound](#example-6-fma---memory-vs-compute-bound)
   - [Example 7: Image Processing (Horizontal Blur)](#example-7-image-processing-horizontal-blur)
+  - [Example 8: When SIMD Makes Things Worse](#example-8-when-simd-makes-things-worse)
 - [Compiler Comparison: GCC vs Intel](#compiler-comparison-gcc-vs-intel) ⭐ New!
 - [Key Takeaways](#key-takeaways)
 - [Appendix: Quick Reference](#appendix-quick-reference)

@@ -12,11 +12,23 @@ using namespace simd_examples;
 //   result = v[0] + v[1] + ... + v[W-1]
 
 // Scalar sum: simple loop
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
 float sum_scalar(const float* a, std::size_t n) {
     float s = 0.f;
     for (std::size_t i = 0; i < n; ++i) s += a[i];
     return s;
 }
+#else
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
+float sum_scalar(const float* a, std::size_t n) {
+    float s = 0.f;
+    for (std::size_t i = 0; i < n; ++i) s += a[i];
+    return s;
+}
+#pragma GCC pop_options
+#endif
 
 // SIMD sum: accumulate in SIMD registers, then reduce
 float sum_simd(const float* a, std::size_t n) {

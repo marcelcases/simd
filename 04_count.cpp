@@ -12,7 +12,17 @@ using namespace simd_examples;
 // This is implemented efficiently using SIMD instructions on most CPUs
 
 // Scalar count: simple loop
-// The pragma prevents auto-vectorization to show true scalar performance
+// The pragma/attribute prevents auto-vectorization to show true scalar performance
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
+std::size_t count_scalar(const float* a, std::size_t n, float thr) {
+    std::size_t cnt = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (a[i] > thr) ++cnt;
+    }
+    return cnt;
+}
+#else
 #pragma GCC push_options
 #pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
 std::size_t count_scalar(const float* a, std::size_t n, float thr) {
@@ -23,6 +33,7 @@ std::size_t count_scalar(const float* a, std::size_t n, float thr) {
     return cnt;
 }
 #pragma GCC pop_options
+#endif
 
 // SIMD count using popcount
 std::size_t count_simd(const float* a, std::size_t n, float thr) {

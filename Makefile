@@ -30,7 +30,7 @@ RISCV_LDLIBS = -lm
 QEMU_RISCV = qemu-riscv64-static
 
 LDLIBS = -lm
-TARGETS = 01_add 02_sum 03_clamp 04_count 05_softmax 06_conv 07_filter
+TARGETS = 01_add 02_sum 03_clamp 04_count 05_softmax 06_conv 07_filter 08_conv
 TARGETS_RISCV = $(addsuffix .riscv,$(TARGETS))
 
 all: $(TARGETS)

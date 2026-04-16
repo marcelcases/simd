@@ -12,7 +12,15 @@ using namespace simd_examples;
 // - Handle any remaining elements (tail) with a simple loop
 
 // Scalar (non-vectorized) baseline - one element at a time
-// The pragma prevents the compiler from auto-vectorizing this function
+// The pragma/attribute prevents the compiler from auto-vectorizing
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
+void add_scalar(float* __restrict dst, const float* __restrict src, std::size_t n) {
+    for (std::size_t i = 0; i < n; ++i) {
+        dst[i] += src[i];
+    }
+}
+#else
 #pragma GCC push_options
 #pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
 void add_scalar(float* __restrict dst, const float* __restrict src, std::size_t n) {
@@ -21,6 +29,7 @@ void add_scalar(float* __restrict dst, const float* __restrict src, std::size_t 
     }
 }
 #pragma GCC pop_options
+#endif
 
 // SIMD version using std::simd
 // Works on x86 (SSE/AVX/AVX-512), ARM (NEON), and RISC-V (RVV) without changes

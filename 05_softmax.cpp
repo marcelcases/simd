@@ -26,11 +26,23 @@ V exp_poly(V z) noexcept {
 }
 
 // Pass 1: Find maximum (for numerical stability)
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
 float find_max_scalar(const float* x, std::size_t n) {
     float m = std::numeric_limits<float>::lowest();
     for (std::size_t i = 0; i < n; ++i) m = std::max(m, x[i]);
     return m;
 }
+#else
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
+float find_max_scalar(const float* x, std::size_t n) {
+    float m = std::numeric_limits<float>::lowest();
+    for (std::size_t i = 0; i < n; ++i) m = std::max(m, x[i]);
+    return m;
+}
+#pragma GCC pop_options
+#endif
 
 float find_max_simd(const float* x, std::size_t n) {
     using V = native_simd<float>;
@@ -50,6 +62,8 @@ float find_max_simd(const float* x, std::size_t n) {
 }
 
 // Scalar softmax
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
 void softmax_scalar(float* x, std::size_t n) {
     float maxv = find_max_scalar(x, n);
     float sum = 0.f;
@@ -62,6 +76,23 @@ void softmax_scalar(float* x, std::size_t n) {
     
     for (std::size_t i = 0; i < n; ++i) x[i] /= sum;
 }
+#else
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
+void softmax_scalar(float* x, std::size_t n) {
+    float maxv = find_max_scalar(x, n);
+    float sum = 0.f;
+    
+    for (std::size_t i = 0; i < n; ++i) {
+        float z = std::exp(x[i] - maxv);
+        x[i] = z;
+        sum += z;
+    }
+    
+    for (std::size_t i = 0; i < n; ++i) x[i] /= sum;
+}
+#pragma GCC pop_options
+#endif
 
 // SIMD softmax
 void softmax_simd(float* x, std::size_t n) {

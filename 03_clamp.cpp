@@ -16,11 +16,23 @@ using namespace simd_examples;
 // - mask operations are element-wise comparisons
 
 // Scalar clamp: simple loop with if
+#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
+__attribute__((noinline, optnone))
 void clamp_scalar(float* a, std::size_t n, float hi) {
     for (std::size_t i = 0; i < n; ++i) {
         if (a[i] > hi) a[i] = hi;
     }
 }
+#else
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
+void clamp_scalar(float* a, std::size_t n, float hi) {
+    for (std::size_t i = 0; i < n; ++i) {
+        if (a[i] > hi) a[i] = hi;
+    }
+}
+#pragma GCC pop_options
+#endif
 
 // SIMD clamp using masks
 void clamp_simd(float* a, std::size_t n, float hi) {
