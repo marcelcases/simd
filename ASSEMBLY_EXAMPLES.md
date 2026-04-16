@@ -247,7 +247,7 @@ This is the fundamental reason SIMD is faster!
 
 ## Advanced Example: Fused Multiply-Add (FMA)
 
-C++ code from `06_conv.cpp`:
+C++ code from `06_fma.cpp`:
 ```cpp
 for (int j = 0; j < K; ++j) {
     V kv(k[j]);

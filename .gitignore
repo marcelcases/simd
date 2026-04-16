@@ -11,5 +11,7 @@
 *.o
 *.riscv
 
+.source
+
 # macOS
 .DS_Store

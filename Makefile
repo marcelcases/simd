@@ -30,7 +30,7 @@ RISCV_LDLIBS = -lm
 QEMU_RISCV = qemu-riscv64-static
 
 LDLIBS = -lm
-TARGETS = 01_add 02_sum 03_clamp 04_count 05_softmax 06_conv 07_filter 08_conv
+TARGETS = 01_add 02_sum 03_clamp 04_count 05_softmax 06_fma 07_filter 08_conv1d
 TARGETS_RISCV = $(addsuffix .riscv,$(TARGETS))
 
 all: $(TARGETS)
@@ -78,6 +78,6 @@ verify-riscv: 01_add.s
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) -S $< -o $@
 
 clean:
-	rm -f $(TARGETS) $(TARGETS_RISCV) *.o *.s
+	rm -f $(TARGETS) $(TARGETS_RISCV) *.o *.s 06_conv 06_conv.riscv 08_conv 08_conv.riscv
 
 .PHONY: all run riscv run-riscv-128 run-riscv-512 run-riscv-both verify-riscv clean

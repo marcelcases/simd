@@ -2,15 +2,13 @@
 
 A practical guide to writing portable, high-performance SIMD code using the C++26 standard library.
 
-**🚀 New to SIMD?** Start with [QUICK_START.md](QUICK_START.md) for a 5-minute setup guide!
-
 ## Table of Contents
 
 - [Introduction](#introduction)
 - [What is SIMD?](#what-is-simd)
 - [The std::simd Library](#the-stdsimd-library)
 - [Building and Running Examples](#building-and-running-examples)
-- [Understanding Vector Instructions](#understanding-vector-instructions-low-level-details) ⭐ New!
+- [Understanding Vector Instructions](#understanding-vector-instructions-low-level-details)
 - [Basic Examples](#basic-examples)
   - [Example 1: Vector Add](#example-1-vector-add)
   - [Example 2: Sum Reduction](#example-2-sum-reduction)
@@ -21,16 +19,14 @@ A practical guide to writing portable, high-performance SIMD code using the C++2
   - [Example 6: FMA - Memory vs Compute Bound](#example-6-fma---memory-vs-compute-bound)
   - [Example 7: Image Processing (Horizontal Blur)](#example-7-image-processing-horizontal-blur)
   - [Example 8: When SIMD Makes Things Worse](#example-8-when-simd-makes-things-worse)
-- [Compiler Comparison: GCC vs Intel](#compiler-comparison-gcc-vs-intel) ⭐ New!
+- [Compiler Comparison: GCC vs Intel](#compiler-comparison-gcc-vs-intel)
 - [Key Takeaways](#key-takeaways)
 - [Appendix: Quick Reference](#appendix-quick-reference)
 
 ## Additional Resources
 
-- **[QUICK_START.md](QUICK_START.md)** ⭐ - Get started in 5 minutes with platform-specific setup
 - **[ASSEMBLY_EXAMPLES.md](ASSEMBLY_EXAMPLES.md)** - Annotated assembly code with detailed explanations
 - **[RISCV_STATUS.md](RISCV_STATUS.md)** - RISC-V vectorization status and limitations
-- **[RISCV_SETUP.md](RISCV_SETUP.md)** - RISC-V emulation setup guide
 
 ---
 
@@ -175,8 +171,6 @@ make riscv
 make run-riscv-128
 ```
 
-For detailed setup instructions and alternative approaches, see **[RISCV_SETUP.md](RISCV_SETUP.md)**.
-
 ### Compiler Flags
 
 The Makefile automatically detects your platform and uses appropriate flags:
@@ -193,7 +187,7 @@ Common flags for all platforms:
 - `-O3`: Maximum optimization
 - `-fno-math-errno -fno-trapping-math`: Allow aggressive FP optimizations
 
-### Important: Benchmarking SIMD Code
+### Benchmarking SIMD Code
 
 When benchmarking SIMD code, there's a subtle but critical issue: modern compilers are very good at optimizing away "dead code." If the compiler can prove that the result of a computation doesn't affect observable program behavior, it may simply eliminate the computation entirely.
 
@@ -277,7 +271,7 @@ grep -E 'vle32\.v|vfadd\.vv' 01_add.s
 | 03_clamp | `fcmgt v3.4s, v30.4s, v31.4s` | `vcmpps` + `vblendps` | `flt.s` ⚠️ |
 | 04_count | `fcmgt` + `addp v31.2s` | `vcmpps` + `vpopcntd` | `flt.s` ⚠️ |
 | 05_softmax | `fmaxnm v31.4s, v31.4s, v4.4s` | `vmaxps zmm` | `fmax.s` ⚠️ |
-| 06_conv | `fmla v31.4s, v27.4s, v30.4s` | `vfmadd231ps zmm` | `fmadd.s` ⚠️ |
+| 06_fma | `fmla v31.4s, v27.4s, v30.4s` | `vfmadd231ps zmm` | `fmadd.s` ⚠️ |
 | 07_filter | `fadd` + `fdiv v17.4s` | `vaddps` + `vdivps` | `fadd.s` ⚠️ |
 
 ⚠️ **Note**: RISC-V currently uses scalar instructions due to lack of `std::simd` support for RVV. See [RISCV_STATUS.md](RISCV_STATUS.md).
@@ -342,7 +336,7 @@ Result v30:   [c0, c1, c2, c3]  (4 results computed in parallel)
 - `fmax v.4s, v1.4s, v2.4s` - Element-wise maximum
 - `fdiv v.4s, v1.4s, v2.4s` - Element-wise division
 
-**Example from `06_conv.cpp` (FMA operation):**
+**Example from `06_fma.cpp` (FMA operation):**
 ```assembly
 # Fused multiply-add: v31 = v31 + (v27 * v30)
 fmla v31.4s, v27.4s, v30.4s
@@ -409,7 +403,7 @@ vcmpps k1, zmm1, zmm2, 30              # 30 = greater-than predicate
 vaddps zmm0 {k1}, zmm3, zmm4           # zmm0[i] = (k1[i] ? zmm3[i]+zmm4[i] : zmm0[i])
 ```
 
-**Example from `06_conv.cpp` (FMA operation):**
+**Example from `06_fma.cpp` (FMA operation):**
 ```assembly
 # Fused multiply-add: zmm0 = zmm0 + (zmm1 * zmm2)
 vfmadd231ps zmm0, zmm1, zmm2
@@ -432,7 +426,7 @@ Unlike NEON (fixed 128-bit) and AVX-512 (fixed 512-bit), RISC-V vectors have run
 vsetvli t0, a0, e32, m1    # t0 = min(a0, VLEN/32), e32 = 32-bit elements, m1 = 1 register
 ```
 
-**Example of what `01_add.cpp` SHOULD generate (not currently working):**
+**Example of what `01_add.cpp` should generate (not currently working):**
 ```assembly
 # Set vector type: 32-bit float elements
 vsetvli t0, a2, e32, m1       # t0 = actual vector length used
@@ -450,7 +444,7 @@ vfadd.vv v3, v1, v2           # v3[i] = v1[i] + v2[i]
 vse32.v v3, (a0)              # Store to destination
 ```
 
-**What we ACTUALLY get (scalar fallback):**
+**What we actually get (scalar fallback):**
 ```assembly
 # Current GCC 13 output - no vectorization!
 flw fa5, 0(a0)                # Load single float
@@ -535,7 +529,7 @@ vmovaps zmm0, [addr]     # Fast: requires 64-byte alignment
 vmovups zmm0, [addr]     # Slower: works with any alignment
 ```
 
-### Want More Detail?
+### More Detail
 
 For complete annotated assembly examples showing exactly what each instruction does, see **[ASSEMBLY_EXAMPLES.md](ASSEMBLY_EXAMPLES.md)**. This document includes:
 - Line-by-line assembly annotations for all three architectures
@@ -601,14 +595,6 @@ void add_simd(float* dst, const float* src, size_t n) {
 }
 ```
 
-### Expected Results
-
-```
-Scalar time: ~20 ms
-SIMD time:   ~17 ms  
-Speedup:     ~1.2x
-```
-
 **Note**: Speedup is modest because this is memory-bandwidth limited, not compute-limited. The compiler also auto-vectorizes this simple case.
 
 ### When to Use Explicit SIMD
@@ -670,14 +656,6 @@ float sum_simd(const float* a, size_t n) {
     for (; i < n; ++i) s += a[i];
     return s;
 }
-```
-
-### Expected Results
-
-```
-Scalar time: ~11 ms
-SIMD time:   ~2 ms
-Speedup:     ~5x
 ```
 
 ### Important: Floating-Point Non-Associativity
@@ -743,15 +721,7 @@ void clamp_simd(float* a, size_t n, float hi) {
 }
 ```
 
-### Expected Results
-
-```
-Scalar time: ~2.3 ms
-SIMD time:   ~3.0 ms
-Speedup:     ~0.77x (slower!)
-```
-
-**Teaching Moment**: Not all operations benefit from SIMD! Simple conditional updates may be slower due to the overhead of masked operations. Profile your code!
+**Why Speedup is Modest**: Not all operations benefit from SIMD. Simple conditional updates may be slower due to the overhead of masked operations.
 
 ---
 
@@ -803,22 +773,16 @@ size_t count_simd(const float* a, size_t n, float thr) {
 }
 ```
 
-### Expected Results
-
-```
-Scalar time: ~11 ms
-SIMD time:   ~2 ms
-Speedup:     ~5x
-
-Results:
-  Scalar count: 8390381
-  SIMD count:   8390381
-  Match:        YES
-```
-
 ---
 
 # Advanced Examples
+
+### At a Glance (What It Is / What It Is Not)
+
+- **Example 5 (`05_softmax.cpp`)**: stable softmax with SIMD passes; **not** a full ML inference pipeline.
+- **Example 6 (`06_fma.cpp`)**: FMA microbenchmark comparing memory-bound and compute-bound kernels; **not** convolution.
+- **Example 7 (`07_filter.cpp`)**: horizontal image blur with sliding window; **not** a full 2D stencil optimization study.
+- **Example 8 (`08_conv1d.cpp`)**: 1D small-kernel convolution showing when explicit SIMD can lose; **not** a general-purpose convolution library.
 
 ## Example 5: Numerically Stable Softmax
 
@@ -897,19 +861,11 @@ void softmax_simd(float* x, size_t n) {
 }
 ```
 
-### Expected Results
-
-```
-Scalar time: ~5.4 ms
-SIMD time:   ~1.3 ms
-Speedup:     ~4x
-```
-
 ---
 
 ## Example 6: FMA - Memory vs Compute Bound
 
-**File**: [`06_conv.cpp`](06_conv.cpp)
+**File**: [`06_fma.cpp`](06_fma.cpp)
 
 Fused Multiply-Add (FMA) computes `a*b + c` in a single CPU instruction rather than two separate operations (multiply then add). This provides two benefits: higher precision because there's only one rounding instead of two, and higher throughput since it's a single instruction.
 
@@ -965,21 +921,7 @@ float dot_simd(const float* a, const float* b, std::size_t n) {
 }
 ```
 
-### Expected Results (Intel Compiler)
-
-```
-TEST 1: Memory-bound (y = a*b + c)
-  Scalar: 24.5 ms
-  SIMD:   10.2 ms
-  Speedup: 2.4x
-
-TEST 2: Compute-bound (dot product)
-  Scalar: 23.8 ms
-  SIMD:   2.9 ms
-  Speedup: 8.3x
-```
-
-**Key Lesson**: The same operation (FMA) shows 2.4x speedup when memory-bound, but 8.3x when compute-bound!
+**Key Lesson**: The same operation (FMA) shows 2.4x speedup when memory-bound, but 8.3x when compute-bound.
 
 ---
 
@@ -1030,15 +972,6 @@ void blur_horizontal_simd(const Image& in, Image& out) {
 }
 ```
 
-### Expected Results
-
-```
-Image size:  1920 x 1080 (2.07M pixels)
-Scalar time: 0.49 ms
-SIMD time:   0.21 ms
-Speedup:     2.3x
-```
-
 **Why Speedup is Modest**: Each output requires 3 overlapping loads:
 
 ```
@@ -1050,6 +983,22 @@ right:  [x+1, x+2, x+3, x+4, ...]
 Memory bandwidth becomes the bottleneck, not compute. For better performance, consider:
 - **Separable filters**: Process rows and columns separately
 - **Tiling**: Process small tiles that fit in cache
+
+---
+
+## Example 8: When SIMD Makes Things Worse
+
+**File**: [`08_conv1d.cpp`](08_conv1d.cpp)
+
+This example uses a 1D convolution with a small kernel to show that explicit SIMD can be slower than scalar code that the compiler auto-vectorizes well.
+
+### Key Concepts
+
+1. Small kernels can have too little work per output for explicit SIMD setup costs.
+2. Overlapping memory accesses can make the kernel memory-bound.
+3. Auto-vectorized scalar code can outperform manual SIMD in simple cases.
+
+**Key Lesson**: benchmark before and after SIMD changes; do not assume explicit SIMD is always faster.
 
 ---
 
@@ -1143,13 +1092,13 @@ icpx -std=c++2b -O3 -march=native -fiopenmp-simd 01_add.cpp -o 01_add_intel
 
 ### When to Use std::simd
 
-✅ **Use explicit SIMD when**:
+**Use explicit SIMD when**:
 - Complex tail handling is needed
 - Operations are compute-intensive (reductions, math functions)
 - Specific alignment guarantees are required
 - Compiler autovectorization fails
 
-❌ **Skip explicit SIMD when**:
+**Skip explicit SIMD when**:
 - Simple operations that compiler auto-vectorizes well
 - Memory-bandwidth limited (not compute-limited)
 - Overhead exceeds benefits (small arrays, simple ops)
@@ -1169,14 +1118,6 @@ No `#ifdef` needed!
 2. **Align data**: Use `posix_memalign` or aligned allocators
 3. **Handle tails**: Process remaining elements with simple loop
 4. **Test numerical correctness**: Floating-point may differ
-
-### Further Reading
-
-- [cppreference: std::simd](https://en.cppreference.com/w/cpp/experimental/simd)
-- [GCC libstdc++ SIMD documentation](https://gcc.gnu.org/onlinedocs/libstdc++/manual/simd_support.html)
-- [C++26 Proposal P1928](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2021/p1928r3.html)
-
----
 
 ## Appendix: Quick Reference
 

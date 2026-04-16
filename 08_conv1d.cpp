@@ -21,13 +21,12 @@ using namespace simd_examples;
 // Scalar convolution - let the compiler do its thing
 #if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
 __attribute__((noinline, optnone))
-#endif
-void conv1d_scalar_novec(const float* x, const float* k, float* y, 
-                          std::size_t n, int K) {
-#if !defined(__INTEL_LLVM_COMPILER) && !defined(__clang__)
+#else
 #pragma GCC push_options
 #pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
 #endif
+void conv1d_scalar_novec(const float* x, const float* k, float* y, 
+                          std::size_t n, int K) {
     std::size_t end = n - K + 1;
     for (std::size_t i = 0; i < end; ++i) {
         float s = 0.f;
@@ -36,10 +35,10 @@ void conv1d_scalar_novec(const float* x, const float* k, float* y,
         }
         y[i] = s;
     }
+}
 #if !defined(__INTEL_LLVM_COMPILER) && !defined(__clang__)
 #pragma GCC pop_options
 #endif
-}
 
 // Scalar convolution - auto-vectorized by compiler
 void conv1d_scalar_autovec(const float* __restrict x, const float* __restrict k, 

@@ -50,7 +50,7 @@ make verify-riscv
 | 03_clamp | 86.8 ms | 86.9 ms | **1.00x** | No vectorization |
 | 04_count | 221.8 ms | 221.5 ms | **1.00x** | No vectorization |
 | 05_softmax | 153.0 ms | 82.3 ms | **1.86x** | Unexpectedly faster! |
-| 06_conv | 34.6 ms | 34.5 ms | **1.00x** | No vectorization |
+| 06_fma | 34.6 ms | 34.5 ms | **1.00x** | No vectorization |
 | 07_filter | 39.4 ms | 52.7 ms | **0.75x** | Overhead without vectorization |
 
 **Important:** Times are from QEMU emulation (slow) and not representative of real RISC-V hardware performance.
