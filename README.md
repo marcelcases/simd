@@ -66,7 +66,7 @@ Register: [b0, b1, b2, b3, b4, b5, b6, b7]
 Result:   [c0, c1, c2, c3, c4, c5, c6, c7]
 ```
 
-One instruction does 8 additions instead of 1!
+One instruction does 8 additions instead of 1.
 
 ---
 
@@ -212,6 +212,17 @@ By storing the result in a global volatile variable, we force the compiler to ac
 2. The compiler can't prove it doesn't matter
 
 This is why all our scalar functions include a pragma to disable auto-vectorization AND we use a global sink in the benchmark. Both are necessary for accurate comparisons.
+
+### List of Problems
+
+1. **Problem 1: Vector Add** (`01_add.cpp`) - Adds two arrays element-wise and introduces the basic SIMD loop pattern.
+2. **Problem 2: Sum Reduction** (`02_sum.cpp`) - Sums a large array using SIMD accumulation and horizontal reduction.
+3. **Problem 3: Clamp with Masks** (`03_clamp.cpp`) - Applies an upper bound using SIMD comparisons and masked assignment.
+4. **Problem 4: Count with Popcount** (`04_count.cpp`) - Counts elements above a threshold using masks plus popcount.
+5. **Problem 5: Stable Softmax** (`05_softmax.cpp`) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
+6. **Problem 6: FMA Memory vs Compute Bound** (`06_fma.cpp`) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
+7. **Problem 7: Horizontal Image Blur** (`07_filter.cpp`) - Applies a sliding-window blur and shows limits from overlapping memory loads.
+8. **Problem 8: 1D Convolution Tradeoff** (`08_conv1d.cpp`) - Shows a small-kernel convolution where explicit SIMD may lose to auto-vectorized scalar code.
 
 ### Measured Results
 
@@ -408,7 +419,7 @@ vaddps zmm0 {k1}, zmm3, zmm4           # zmm0[i] = (k1[i] ? zmm3[i]+zmm4[i] : zm
 # Fused multiply-add: zmm0 = zmm0 + (zmm1 * zmm2)
 vfmadd231ps zmm0, zmm1, zmm2
 ```
-This is equivalent to 16 operations in one instruction!
+This is equivalent to 16 operations in one instruction.
 
 ### RISC-V Vector (RVV) Instructions (Variable VLEN)
 
@@ -446,10 +457,10 @@ vse32.v v3, (a0)              # Store to destination
 
 **What we actually get (scalar fallback):**
 ```assembly
-# Current GCC 13 output - no vectorization!
+# Current GCC 13 output - no vectorization
 flw fa5, 0(a0)                # Load single float
 flw fa4, 0(a1)                # Load single float
-fadd.s fa5, fa5, fa4          # Scalar add (only 1 float!)
+fadd.s fa5, fa5, fa4          # Scalar add (only 1 float)
 fsw fa5, 0(a0)                # Store single float
 ```
 
@@ -482,7 +493,7 @@ fsw fa5, 0(a0)                # Store single float
 | **RISC-V (VLEN=128)** | v0-v31 | 128-bit | 4 | 4 |
 | **RISC-V (VLEN=512)** | v0-v31 | 512-bit | 16 | 1 |
 
-This is why AVX-512 can achieve higher theoretical speedups than NEON—it processes 4x more data per instruction!
+This is why AVX-512 can achieve higher theoretical speedups than NEON—it processes 4x more data per instruction.
 
 ### Debugging Tips
 
@@ -677,7 +688,7 @@ The SIMD version adds elements in a different order than scalar, causing differe
 
 **File**: [`03_clamp.cpp`](03_clamp.cpp)
 
-Masked operations allow you to apply computations conditionally to individual elements within a SIMD register, without using branches. When you compare two SIMD vectors (e.g., `v > vhi`), you get a mask where each lane is true or false. The `stdx::where(mask, value)` construct then acts as a conditional update: elements where the mask is true get the new value, while others remain unchanged. On CPUs with AVX-512, this compiles to specialized blend instructions that are very efficient. However, this example also serves as an important lesson: not all operations benefit from explicit SIMD. The clamp operation is so simple that the overhead of creating masks and applying conditional updates can exceed the benefit—you may actually see the SIMD version run slower than the scalar version!
+Masked operations allow you to apply computations conditionally to individual elements within a SIMD register, without using branches. When you compare two SIMD vectors (e.g., `v > vhi`), you get a mask where each lane is true or false. The `stdx::where(mask, value)` construct then acts as a conditional update: elements where the mask is true get the new value, while others remain unchanged. On CPUs with AVX-512, this compiles to specialized blend instructions that are very efficient. However, this example also serves as an important lesson: not all operations benefit from explicit SIMD. The clamp operation is so simple that the overhead of creating masks and applying conditional updates can exceed the benefit—you may actually see the SIMD version run slower than the scalar version.
 
 ### Key Concepts
 
@@ -1019,7 +1030,7 @@ We tested these examples with both GCC 13.2.0 and Intel oneAPI DPC++/C++ Compile
 | 06_fma (compute) | 2.2x | 8.3x | Compute-bound FMA |
 | 07_filter | 2.3x | 6.4x | Image processing |
 
-**Key finding**: Intel compiler generates significantly better code for `std::simd`, often 2-4x faster than GCC!
+**Key finding**: Intel compiler generates significantly better code for `std::simd`, often 2-4x faster than GCC.
 
 ### Critical Issue: `stdx::fma()` on GCC
 
@@ -1027,14 +1038,14 @@ We discovered that **GCC's `stdx::fma()` generates terrible code**—it scalariz
 
 ```assembly
 # GCC output for stdx::fma(va, vb, acc):
-vfmadd132ss xmm0, xmm1, dword ptr [...]   # SCALAR fma (processes 1 float!)
+vfmadd132ss xmm0, xmm1, dword ptr [...]   # SCALAR fma (processes 1 float)
 vfmadd132ss xmm0, xmm1, dword ptr [...]   # 16 of these for AVX-512...
 ```
 
 **Intel generates the expected vector instruction:**
 ```assembly
 # Intel output for stdx::fma(va, vb, acc):
-vfmadd231ps zmm0, zmm1, zmm2              # VECTOR fma (processes 16 floats!)
+vfmadd231ps zmm0, zmm1, zmm2              # VECTOR fma (processes 16 floats)
 ```
 
 **Workaround for GCC**: Use `acc + va * vb` instead of `stdx::fma(va, vb, acc)`:
@@ -1110,7 +1121,7 @@ One code base works across:
 - **ARM**: NEON, SVE
 - **RISC-V**: RVV
 
-No `#ifdef` needed!
+No `#ifdef` needed.
 
 ### Best Practices
 
