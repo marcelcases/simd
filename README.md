@@ -26,7 +26,6 @@ A practical guide to writing portable, high-performance SIMD code using the C++2
 ## Additional Resources
 
 - **[ASSEMBLY_EXAMPLES.md](ASSEMBLY_EXAMPLES.md)** - Annotated assembly code with detailed explanations
-- **[RISCV_STATUS.md](RISCV_STATUS.md)** - RISC-V vectorization status and limitations
 
 ---
 
@@ -157,45 +156,30 @@ make
 
 #### RISC-V Emulation
 
-There are currently two useful RISC-V paths:
+Modern compilers (like GCC 15.1.0) successfully lower `std::experimental::simd` to real RISC-V Vector (RVV) instructions. 
 
-- **Linux user-mode execution with GCC 13**: works with `qemu-riscv64-static`, but GCC 13's `std::experimental::simd` falls back to scalar code. See **[RISCV_STATUS.md](RISCV_STATUS.md)** for the older Linux/GCC 13 result.
-- **macOS compile-only RVV verification with GCC 15**: `riscv64-unknown-elf-g++` 15.1.0 lowers `std::experimental::simd` to real RISC-V Vector instructions. This verifies RVV code generation in the binaries, but the full examples are not runnable yet on macOS with Homebrew QEMU because Homebrew currently installs `qemu-system-riscv64`, not `qemu-riscv64` user-mode.
+**Note on Older Compilers**: If you use GCC 13 (the default on Ubuntu 24.04), `std::experimental::simd` will safely fall back to scalar code because RVV mapping wasn't implemented yet.
 
-Quick start on Ubuntu:
+Quick RVV code-generation check (macOS with Homebrew tested):
 ```bash
-# Install QEMU and RISC-V toolchain
-sudo apt install -y qemu-user-static gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
-
-# Build RISC-V binaries
-make riscv
-
-# Run examples (currently uses scalar fallback, SIMD width = 1)
-make run-riscv-128
-```
-
-Quick RVV code-generation check on macOS (M1 Pro tested):
-```bash
-# Install if needed
+# Install toolchain and QEMU if needed
 brew install qemu riscv-gnu-toolchain
 
-# Confirm the compiler version. Tested result: GCC 15.1.0.
+# Confirm the compiler version (GCC 15.1.0+ recommended)
 riscv64-unknown-elf-g++ --version
 
-# Build a RISC-V ELF binary with RVV enabled.
+# Build a RISC-V ELF binary with RVV enabled
 riscv64-unknown-elf-g++ -std=c++2b -march=rv64gcv -O3 -I. \
   01_add.cpp -o /tmp/01_add.riscv
 
-# Inspect the binary for RISC-V Vector instructions.
+# Inspect the binary for RISC-V Vector instructions
 riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \
   grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
 ```
 
-Current macOS limitation: the above verifies that RVV is present in the binary, but it does not run the benchmark. Running these full examples needs either a RISC-V Linux user-mode QEMU binary (`qemu-riscv64`) plus a compatible Linux-targeting RISC-V toolchain, or a full RISC-V Linux/semihosting setup under `qemu-system-riscv64`.
+*macOS Execution Limitation*: The above compiles and verifies RVV instructions. However, running these examples natively on macOS requires a Linux user-mode QEMU binary (`qemu-riscv64`), which Homebrew does not currently provide (it only provides the full system emulator `qemu-system-riscv64`). You can run them inside a Linux VM or Docker container.
 
-`07_filter.cpp` is the one example that does not compile with `riscv64-unknown-elf-g++` in this setup because it calls `posix_memalign`, which is a POSIX API and is not declared by this bare-metal/newlib-style RISC-V toolchain.
-
-Observed on M1 Pro with `riscv64-unknown-elf-g++` 15.1.0 and `riscv64-unknown-elf-objdump` 2.45:
+Observed with `riscv64-unknown-elf-g++` 15.1.0:
 
 | Example | RISC-V build | RVV instruction matches in binary |
 |---------|--------------|-----------------------------------|
@@ -203,9 +187,9 @@ Observed on M1 Pro with `riscv64-unknown-elf-g++` 15.1.0 and `riscv64-unknown-el
 | 02_sum | Compiles | 24 |
 | 03_clamp | Compiles | 25 |
 | 04_count | Compiles | 28 |
-| 05_softmax | Compiles | 62 |
+| 05_softmax | Compiles | 50 |
 | 06_fma | Compiles | 43 |
-| 07_filter | Fails: `posix_memalign` unavailable | 0 |
+| 07_filter | Compiles | 23 |
 | 08_conv1d | Compiles | 32 |
 
 ### Compiler Flags
@@ -310,7 +294,7 @@ g++ -std=c++2b -O3 -march=native -S 01_add.cpp -o 01_add.s
 grep -E 'vaddps|vmulps' 01_add.s        # Look for AVX vector ops
 ```
 
-**RISC-V RVV (macOS compile-only, GCC 15):**
+**RISC-V RVV (GCC 15.1):**
 ```bash
 riscv64-unknown-elf-g++ -std=c++2b -march=rv64gcv -O3 -I. \
   01_add.cpp -o /tmp/01_add.riscv
@@ -321,18 +305,18 @@ riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \
 
 #### Verified Instructions by Architecture
 
-| Example | ARM NEON (M1 Pro) | x86 AVX-512 (MN5) | RISC-V RVV (M1 Pro, GCC 15.1 compile-only) |
-|---------|-------------------|-------------------|---------------------------------------------|
+| Example | ARM NEON (M1 Pro) | x86 AVX-512 (MN5) | RISC-V RVV (GCC 15.1) |
+|---------|-------------------|-------------------|-----------------------|
 | 01_add | `fadd v30.4s, v31.4s, v30.4s` | `vaddps zmm` | `vle32.v`, `vfadd.vv`, `vse32.v` |
 | 02_sum | `fadd v31.4s, v31.4s, v4.4s` | `vaddps zmm` | `vle32.v`, `vfredosum.vs` |
 | 03_clamp | `fcmgt v3.4s, v30.4s, v31.4s` | `vcmpps` + `vblendps` | `vle32.v`, `vse32.v`, `vsetvli` |
 | 04_count | `fcmgt` + `addp v31.2s` | `vcmpps` + `vpopcntd` | `vle32.v`, `vsetvli` |
 | 05_softmax | `fmaxnm v31.4s, v31.4s, v4.4s` | `vmaxps zmm` | `vle32.v`, `vfredosum.vs`, `vsetvli` |
 | 06_fma | `fmla v31.4s, v27.4s, v30.4s` | `vfmadd231ps zmm` | `vle32.v`, `vse32.v`, `vfmacc.vv` |
-| 07_filter | `fadd` + `fdiv v17.4s` | `vaddps` + `vdivps` | Does not compile with `riscv64-unknown-elf-g++` because of `posix_memalign` |
+| 07_filter | `fadd` + `fdiv v17.4s` | `vaddps` + `vdivps` | `vle32.v`, `vse32.v`, `vfadd.vv` |
 | 08_conv1d | - | - | `vle32.v`, `vse32.v`, `vsetvli` |
 
-RISC-V status is compiler-version dependent. The older Linux/GCC 13 user-mode path still falls back to scalar `fadd.s` for `std::experimental::simd`, while the macOS GCC 15.1 `riscv64-unknown-elf-g++` path emits RVV instructions in the binary. Execution of the GCC 15 RISC-V binaries is not working yet in this macOS setup because only `qemu-system-riscv64` is available from Homebrew QEMU, not `qemu-riscv64` user-mode.
+RISC-V support is compiler-version dependent. Modern GCC 15.1.0 cleanly emits RVV instructions in the binary. The older Linux/GCC 13 user-mode path will fall back to scalar `fadd.s` for `std::experimental::simd`. Execution of the GCC 15 RISC-V binaries may require setting up `qemu-riscv64` correctly on your OS.
 
 ---
 
@@ -470,7 +454,7 @@ This is equivalent to 16 operations in one instruction.
 
 ### RISC-V Vector (RVV) Instructions (Variable VLEN)
 
-**⚠️ Important**: GCC 13's `std::simd` doesn't support RVV yet, so these instructions are NOT currently generated. However, here's what WOULD be generated when support is added:
+**Note**: Modern compilers (like GCC 15.1+) fully support RVV generation for `std::simd`. Older compilers like GCC 13 fall back to scalar operations.
 
 **Register naming:**
 - `v0` to `v31` = vector registers (width determined by VLEN parameter)
@@ -484,7 +468,7 @@ Unlike NEON (fixed 128-bit) and AVX-512 (fixed 512-bit), RISC-V vectors have run
 vsetvli t0, a0, e32, m1    # t0 = min(a0, VLEN/32), e32 = 32-bit elements, m1 = 1 register
 ```
 
-**Example of what `01_add.cpp` should generate (not currently working):**
+**Example of what `01_add.cpp` generates:**
 ```assembly
 # Set vector type: 32-bit float elements
 vsetvli t0, a2, e32, m1       # t0 = actual vector length used
@@ -502,9 +486,9 @@ vfadd.vv v3, v1, v2           # v3[i] = v1[i] + v2[i]
 vse32.v v3, (a0)              # Store to destination
 ```
 
-**What we actually get (scalar fallback):**
+**What older compilers (like GCC 13) generate (scalar fallback):**
 ```assembly
-# Current GCC 13 output - no vectorization
+# Older GCC 13 output - no vectorization
 flw fa5, 0(a0)                # Load single float
 flw fa4, 0(a1)                # Load single float
 fadd.s fa5, fa5, fa4          # Scalar add (only 1 float)

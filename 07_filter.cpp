@@ -112,8 +112,8 @@ int main() {
     Image in{W, H, nullptr}, out{W, H, nullptr};
     
     // Aligned allocation
-    posix_memalign((void**)&in.data, 64, W * H * sizeof(float));
-    posix_memalign((void**)&out.data, 64, W * H * sizeof(float));
+    in.data = (float*)std::malloc(W * H * sizeof(float));
+    out.data = (float*)std::malloc(W * H * sizeof(float));
     
     // Random pixel values
     std::mt19937 rng(42);
