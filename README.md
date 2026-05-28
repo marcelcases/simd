@@ -154,43 +154,35 @@ sudo apt install g++-13
 make
 ```
 
-#### RISC-V Emulation
+#### RISC-V Emulation (MareNostrum 5 / Linux)
 
-Modern compilers (like GCC 15.1.0) successfully lower `std::experimental::simd` to real RISC-V Vector (RVV) instructions. 
+Modern compilers (like GCC 15.1.0) successfully lower `std::experimental::simd` to real RISC-V Vector (RVV) instructions natively, without needing third-party libraries or submodules.
 
-**Note on Older Compilers**: If you use GCC 13 (the default on Ubuntu 24.04), `std::experimental::simd` will safely fall back to scalar code because RVV mapping wasn't implemented yet.
+**Note on Older Compilers**: If you use GCC 13 (the default on MareNostrum 5 and Ubuntu 24.04), `std::experimental::simd` will safely fall back to scalar code because RVV mapping wasn't implemented yet. 
 
-Quick RVV code-generation check (macOS with Homebrew tested):
+To compile and emulate RVV on x86_64 machines (like MareNostrum 5), use a bleeding-edge cross-compiler and QEMU:
+
 ```bash
-# Install toolchain and QEMU if needed
-brew install qemu riscv-gnu-toolchain
+# 1. Download a bleeding-edge GCC 15.1.0 RISC-V cross-compiler (e.g., Bootlin toolchains)
+wget https://toolchains.bootlin.com/downloads/releases/toolchains/riscv64-lp64d/tarballs/riscv64-lp64d--glibc--bleeding-edge-2025.08-1.tar.xz
+tar xf riscv64-lp64d--glibc--bleeding-edge-2025.08-1.tar.xz
+export PATH=$PWD/riscv64-lp64d--glibc--bleeding-edge-2025.08-1/bin:$PATH
 
-# Confirm the compiler version (GCC 15.1.0+ recommended)
-riscv64-unknown-elf-g++ --version
+# 2. Download a static QEMU user-mode emulator for RISC-V
+wget https://github.com/multiarch/qemu-user-static/releases/download/v7.2.0-1/qemu-riscv64-static
+chmod +x qemu-riscv64-static
+export QEMU_RISCV=$PWD/qemu-riscv64-static
 
-# Build a RISC-V ELF binary with RVV enabled
-riscv64-unknown-elf-g++ -std=c++2b -march=rv64gcv -O3 -I. \
-  01_add.cpp -o /tmp/01_add.riscv
+# 3. Build and verify RVV instruction generation
+make riscv RISCV_CXX=riscv64-linux-g++ RISCV_CXXFLAGS="-std=c++2b -O3 -march=rv64gcv -mrvv-vector-bits=zvl -static"
+make verify-riscv RISCV_CXX=riscv64-linux-g++
 
-# Inspect the binary for RISC-V Vector instructions
-riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \
-  grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
+# 4. Run through the QEMU emulator (e.g., with VLEN=128)
+make run-riscv-128 QEMU_RISCV=$QEMU_RISCV
 ```
 
-*macOS Execution Limitation*: The above compiles and verifies RVV instructions. However, running these examples natively on macOS requires a Linux user-mode QEMU binary (`qemu-riscv64`), which Homebrew does not currently provide (it only provides the full system emulator `qemu-system-riscv64`). You can run them inside a Linux VM or Docker container.
-
-Observed with `riscv64-unknown-elf-g++` 15.1.0:
-
-| Example | RISC-V build | RVV instruction matches in binary |
-|---------|--------------|-----------------------------------|
-| 01_add | Compiles | 32 |
-| 02_sum | Compiles | 24 |
-| 03_clamp | Compiles | 25 |
-| 04_count | Compiles | 28 |
-| 05_softmax | Compiles | 50 |
-| 06_fma | Compiles | 43 |
-| 07_filter | Compiles | 23 |
-| 08_conv1d | Compiles | 32 |
+**Emulation Slowdown Notes:**
+When running the binaries through QEMU (`vlen=128`), you will observe that the "Speedup" metrics are actually `< 1.0x` (meaning the SIMD code runs slower than the scalar code). This is completely expected: QEMU interprets and translates every RISC-V vector instruction into host x86 instructions dynamically in software. Vector execution via software emulation is incredibly expensive compared to native execution, so you will not see real performance gains in an emulator. Emulation here strictly serves to verify that the C++ code successfully compiles to RVV and computes logically correct results.
 
 ### Compiler Flags
 
@@ -202,7 +194,6 @@ The Makefile automatically detects your platform and uses appropriate flags:
 | macOS (ARM) | `g++-15` | `-mcpu=apple-m1` |
 | macOS (Intel) | `g++-15` | `-march=native` |
 | RISC-V (emulated) | `riscv64-linux-gnu-g++` | `-march=rv64gcv -static` |
-| RISC-V (macOS compile-only) | `riscv64-unknown-elf-g++` | `-march=rv64gcv` |
 
 Common flags for all platforms:
 - `-std=c++2b`: C++26 working draft
@@ -296,10 +287,10 @@ grep -E 'vaddps|vmulps' 01_add.s        # Look for AVX vector ops
 
 **RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-unknown-elf-g++ -std=c++2b -march=rv64gcv -O3 -I. \
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -I. \
   01_add.cpp -o /tmp/01_add.riscv
 
-riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \
+riscv64-linux-objdump -d /tmp/01_add.riscv | \
   grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
 ```
 
@@ -316,7 +307,7 @@ riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \
 | 07_filter | `fadd` + `fdiv v17.4s` | `vaddps` + `vdivps` | `vle32.v`, `vse32.v`, `vfadd.vv` |
 | 08_conv1d | - | - | `vle32.v`, `vse32.v`, `vsetvli` |
 
-RISC-V support is compiler-version dependent. Modern GCC 15.1.0 cleanly emits RVV instructions in the binary. The older Linux/GCC 13 user-mode path will fall back to scalar `fadd.s` for `std::experimental::simd`. Execution of the GCC 15 RISC-V binaries may require setting up `qemu-riscv64` correctly on your OS.
+RISC-V support is compiler-version dependent. Modern GCC 15.1.0 cleanly emits RVV instructions natively. The older Linux/GCC 13 path will safely fall back to scalar operations like `fadd.s` for `std::experimental::simd`. As noted, executing these binaries on x86 machines requires `qemu-riscv64` and will exhibit emulation slowdowns.
 
 ---
 
