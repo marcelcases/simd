@@ -1,0 +1,3 @@
+[submodule "cpp-simd-riscv"]
+	path = cpp-simd-riscv
+	url = https://github.com/Pansysk75/cpp-simd-riscv.git
