@@ -184,6 +184,25 @@ make run-riscv-128 QEMU_RISCV=$QEMU_RISCV
 **Emulation Slowdown Notes:**
 When running the binaries through QEMU (`vlen=128`), you will observe that the "Speedup" metrics are actually `< 1.0x` (meaning the SIMD code runs slower than the scalar code). This is completely expected: QEMU interprets and translates every RISC-V vector instruction into host x86 instructions dynamically in software. Vector execution via software emulation is incredibly expensive compared to native execution, so you will not see real performance gains in an emulator. Emulation here strictly serves to verify that the C++ code successfully compiles to RVV and computes logically correct results.
 
+Observed on MareNostrum 5 with Bootlin `riscv64-linux-g++` 15.1.0, `qemu-riscv64-static`, and `-cpu rv64,v=true,vlen=128`:
+
+| Example | Scalar time | SIMD time | Reported speedup |
+|---------|-------------|-----------|------------------|
+| 01_add | 551.7 ms | 915.5 ms | 0.60x |
+| 02_sum | 189.4 ms | 148.3 ms | 1.28x |
+| 03_clamp | 132.1 ms | 543.6 ms | 0.24x |
+| 04_count | 235.9 ms | 650.0 ms | 0.36x |
+| 05_softmax | 147.9 ms | 111.8 ms | 1.32x |
+| 06_fma (memory) | 301.9 ms | 706.0 ms | 0.43x |
+| 06_fma (compute) | 288.8 ms | 279.9 ms | 1.03x |
+| 07_filter | 65.7 ms | 86.9 ms | 0.76x |
+| 08_conv1d | 49.9 ms | 59.1 ms | 0.84x |
+
+Important caveats from these runs:
+- These are emulator timings, not native RISC-V hardware timings.
+- GCC 15.1.0 did emit RVV instructions such as `vsetvli`, `vle32.v`, `vse32.v`, and `vfadd.vv` in the generated assembly.
+- In the benchmark output, `native_simd<float>::size()` reported `1` under this setup, even though RVV instructions were present in the binary. That makes these runs useful for code-generation verification and end-to-end execution checks, but not for drawing strong performance conclusions about real RISC-V hardware.
+
 ### Compiler Flags
 
 The Makefile automatically detects your platform and uses appropriate flags:
