@@ -11,7 +11,7 @@ void blur_horizontal(ConstImageView input, ImageView output) noexcept {
         return;
     }
 
-    const vector_type inverse_three(1.f / 3.f);
+    const vector_type one_third(1.f / 3.f);
     for (int row = 0; row < input.height; ++row) {
         const float* source = input.data + row * width;
         float* destination = output.data + row * width;
@@ -24,13 +24,16 @@ void blur_horizontal(ConstImageView input, ImageView output) noexcept {
         destination[0] = (source[0] + source[1]) * 0.5f;
         int column = 1;
         for (; column + vector_width < width; column += vector_width) {
-            vector_type left, center, right;
+            vector_type left;
+            vector_type center;
+            vector_type right;
             left.copy_from(source + column - 1, stdx::element_aligned);
             center.copy_from(source + column, stdx::element_aligned);
             right.copy_from(source + column + 1, stdx::element_aligned);
-            ((left + center + right) * inverse_three)
-                .copy_to(destination + column, stdx::element_aligned);
+            vector_type result = (left + center + right) * one_third;
+            result.copy_to(destination + column, stdx::element_aligned);
         }
+
         for (; column < width - 1; ++column) {
             destination[column] =
                 (source[column - 1] + source[column] + source[column + 1]) / 3.f;

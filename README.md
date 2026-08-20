@@ -295,7 +295,7 @@ The scalar targets receive `-fno-tree-vectorize` and `-fno-tree-loop-distribute-
 
 #### Advanced Examples
 
-5. **Problem 5: Numerically Stable Softmax** ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
+5. **Problem 5: Numerically Stable Softmax** ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) - Computes numerically stable softmax with SIMD max/sum reductions and normalization; exponential evaluation remains scalar without a vector math library.
 6. **Problem 6: FMA and Dot Product** ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
 7. **Problem 7: Horizontal Image Blur** ([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp)) - Applies a sliding-window blur and shows limits from overlapping memory loads.
 8. **Problem 8: 1D Mathematical Convolution** ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) - Shows a small-kernel convolution where explicit SIMD may lose to a simple scalar loop.
@@ -868,7 +868,7 @@ size_t count_simd(const float* a, size_t n, float thr) {
 
 ### At a Glance (What It Is / What It Is Not)
 
-- **Example 5 ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp))**: numerically stable softmax with SIMD passes; **not** a full ML inference pipeline.
+- **Example 5 ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp))**: numerically stable softmax with SIMD reductions and normalization; **not** a full ML inference pipeline.
 - **Example 6 ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp))**: memory-bound FMA and compute-bound dot product; **not** convolution.
 - **Example 7 ([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp))**: horizontal image blur with sliding window; **not** a full 2D stencil optimization study.
 - **Example 8 ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp))**: valid 1D mathematical convolution with a small kernel; **not** a general-purpose convolution library.
@@ -877,7 +877,7 @@ size_t count_simd(const float* a, size_t n, float thr) {
 
 **Sources**: [scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)
 
-Softmax is a fundamental operation in machine learning, but naive implementation suffers from numerical overflow. This example implements the stable version: `softmax(x_i) = exp(x_i - max(x)) / Σ exp(x_j - max(x))`. By subtracting the maximum value before exponentiation, we ensure all arguments to exp() are non-positive, preventing overflow. The implementation uses three passes: first find the maximum, then compute exp() and sum, then normalize. This demonstrates several advanced SIMD concepts including horizontal reductions (`stdx::hmax()` for finding the maximum across all lanes), polynomial approximation for functions not provided by the standard library, and chaining multiple passes over the same data. The polynomial uses Horner's method for efficient evaluation.
+Softmax is a fundamental operation in machine learning, but naive implementation suffers from numerical overflow. This example implements the stable version: `softmax(x_i) = exp(x_i - max(x)) / Σ exp(x_j - max(x))`. By subtracting the maximum value before exponentiation, we ensure all arguments to exp() are non-positive, preventing overflow. The SIMD implementation uses horizontal maximum and sum reductions plus vectorized normalization. The exponential pass remains scalar because `std::experimental::simd` does not provide a portable `exp` overload; this keeps the result correct and makes the boundary between standard C++ and a platform-specific vector math library explicit.
 
 ### Softmax Formula
 
@@ -892,21 +892,18 @@ Subtracting max prevents overflow in exp().
 First, the scalar version:
 
 ```cpp
-// Scalar softmax
 void softmax_scalar(float* x, size_t n) {
-    // Pass 1: find max
-    float maxv = std::numeric_limits<float>::lowest();
-    for (size_t i = 0; i < n; ++i) maxv = std::max(maxv, x[i]);
-    
-    // Pass 2: exp(x - max) and sum
+    if (n == 0) return;
+
+    float maxv = x[0];
+    for (size_t i = 1; i < n; ++i) maxv = std::max(maxv, x[i]);
+
     float sum = 0.f;
     for (size_t i = 0; i < n; ++i) {
-        float z = std::exp(x[i] - maxv);
-        x[i] = z;
-        sum += z;
+        x[i] = std::exp(x[i] - maxv);
+        sum += x[i];
     }
-    
-    // Pass 3: normalize
+
     for (size_t i = 0; i < n; ++i) x[i] /= sum;
 }
 ```
@@ -914,41 +911,38 @@ void softmax_scalar(float* x, size_t n) {
 Now the SIMD version:
 
 ```cpp
-// Polynomial approximation for exp(z) where z <= 0
-template<class V>
-V exp_poly(V z) {
-    const V c1(1.f), c2(1.f), c3(.5f), c4(1.f/6.f);
-    return c1 + z * (c2 + z * (c3 + z * c4));
-}
-
 void softmax_simd(float* x, size_t n) {
     using V = native_simd<float>;
     constexpr size_t W = V::size();
-    
-    // Pass 1: Find max
-    float maxv = find_max_simd(x, n);
-    V vmax(maxv);
-    
-    // Pass 2: exp(x - max) and sum
-    V vsum = 0.f;
-    for (size_t i = 0; i + W <= n; i += W) {
-        V v; v.copy_from(x + i, stdx::element_aligned);
-        v -= vmax;
-        v = exp_poly(v);
-        v.copy_to(x + i, stdx::element_aligned);
-        vsum += v;
+    if (n == 0) return;
+
+    const float maxv = find_max_simd(x, n);
+    for (size_t i = 0; i < n; ++i) {
+        x[i] = std::exp(x[i] - maxv);
     }
-    float sum = stdx::reduce(vsum);
-    
-    // Pass 3: Normalize
-    V vdiv(sum);
-    for (size_t i = 0; i + W <= n; i += W) {
-        V v; v.copy_from(x + i, stdx::element_aligned);
-        v /= vdiv;
-        v.copy_to(x + i, stdx::element_aligned);
+
+    V sum_vector(0.f);
+    size_t i = 0;
+    for (; i + W <= n; i += W) {
+        V values;
+        values.copy_from(x + i, stdx::element_aligned);
+        sum_vector += values;
     }
+    float sum = stdx::reduce(sum_vector);
+    for (; i < n; ++i) sum += x[i];
+
+    const V divisor(sum);
+    i = 0;
+    for (; i + W <= n; i += W) {
+        V values;
+        values.copy_from(x + i, stdx::element_aligned);
+        (values / divisor).copy_to(x + i, stdx::element_aligned);
+    }
+    for (; i < n; ++i) x[i] /= sum;
 }
 ```
+
+A production implementation can replace the scalar `std::exp` loop with a tested vector math library such as SVML or SLEEF.
 
 ---
 
