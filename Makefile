@@ -12,20 +12,20 @@ ifeq ($(UNAME_S),Darwin)
     CXX = g++-15
     ifeq ($(UNAME_M),arm64)
         # Apple Silicon (M1/M2/M3) - ARM NEON (128-bit vectors = 4 floats)
-        CXXFLAGS = -std=c++2b -O3 -mcpu=apple-m1 -fno-math-errno -fno-trapping-math -Wall -Wextra -I.
+        CXXFLAGS = -std=c++2b -O3 -mcpu=apple-m1 -fno-math-errno -fno-trapping-math -Wall -Wextra -Iexamples
     else
         # Intel Mac
-        CXXFLAGS = -std=c++2b -O3 -march=native -fno-math-errno -fno-trapping-math -Wall -Wextra -I.
+        CXXFLAGS = -std=c++2b -O3 -march=native -fno-math-errno -fno-trapping-math -Wall -Wextra -Iexamples
     endif
 else
     # Linux (MareNostrum 5 / Intel AVX-512)
     CXX = g++
-    CXXFLAGS = -std=c++2b -O3 -march=native -mavx512f -mavx512vl -mavx512dq -mavx512bw -fno-math-errno -fno-trapping-math -Wall -Wextra -I.
+    CXXFLAGS = -std=c++2b -O3 -march=native -mavx512f -mavx512vl -mavx512dq -mavx512bw -fno-math-errno -fno-trapping-math -Wall -Wextra -Iexamples
 endif
 
 # RISC-V cross-compilation settings
 RISCV_CXX = riscv64-linux-gnu-g++
-RISCV_CXXFLAGS = -std=c++2b -O3 -march=rv64gcv -static -fno-math-errno -fno-trapping-math -Wall -Wextra -I.
+RISCV_CXXFLAGS = -std=c++2b -O3 -march=rv64gcv -static -fno-math-errno -fno-trapping-math -Wall -Wextra -Iexamples
 RISCV_LDLIBS = -lm
 QEMU_RISCV = qemu-riscv64-static
 
@@ -38,13 +38,13 @@ all: $(TARGETS)
 run: $(TARGETS)
 	@for ex in $(TARGETS); do echo "\n=== $$ex ==="; ./$$ex; done
 
-%: %.cpp common.h Makefile
+%: examples/%.cpp examples/common.h Makefile
 	$(CXX) $(CXXFLAGS) $(LDLIBS) $< -o $@
 
 # RISC-V targets
 riscv: $(TARGETS_RISCV)
 
-%.riscv: %.cpp common.h Makefile
+%.riscv: examples/%.cpp examples/common.h Makefile
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) $(RISCV_LDLIBS) $< -o $@
 
 # Run RISC-V binaries with VLEN=128 (4 floats, like ARM NEON)
@@ -74,7 +74,7 @@ verify-riscv: 01_add.s
 	@echo "=== Checking for RISC-V Vector (RVV) instructions ==="
 	@grep -E 'vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv' 01_add.s || echo "No RVV instructions found - check compiler flags"
 
-01_add.s: 01_add.cpp common.h
+01_add.s: examples/01_add.cpp examples/common.h
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) -S $< -o $@
 
 clean:

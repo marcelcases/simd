@@ -249,17 +249,17 @@ This is why all our scalar functions include a pragma to disable auto-vectorizat
 
 #### Basic Examples
 
-1. **Problem 1: Vector Add** (`01_add.cpp`) - Adds two arrays element-wise and introduces the basic SIMD loop pattern.
-2. **Problem 2: Sum Reduction** (`02_sum.cpp`) - Sums a large array using SIMD accumulation and horizontal reduction.
-3. **Problem 3: Clamp with Masks** (`03_clamp.cpp`) - Applies an upper bound using SIMD comparisons and masked assignment.
-4. **Problem 4: Count with Popcount** (`04_count.cpp`) - Counts elements above a threshold using masks plus popcount.
+1. **Problem 1: Vector Add** (`examples/01_add.cpp`) - Adds two arrays element-wise and introduces the basic SIMD loop pattern.
+2. **Problem 2: Sum Reduction** (`examples/02_sum.cpp`) - Sums a large array using SIMD accumulation and horizontal reduction.
+3. **Problem 3: Clamp with Masks** (`examples/03_clamp.cpp`) - Applies an upper bound using SIMD comparisons and masked assignment.
+4. **Problem 4: Count with Popcount** (`examples/04_count.cpp`) - Counts elements above a threshold using masks plus popcount.
 
 #### Advanced Examples
 
-5. **Problem 5: Stable Softmax** (`05_softmax.cpp`) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
-6. **Problem 6: FMA Memory vs Compute Bound** (`06_fma.cpp`) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
-7. **Problem 7: Horizontal Image Blur** (`07_filter.cpp`) - Applies a sliding-window blur and shows limits from overlapping memory loads.
-8. **Problem 8: 1D Convolution Tradeoff** (`08_conv1d.cpp`) - Shows a small-kernel convolution where explicit SIMD may lose to auto-vectorized scalar code.
+5. **Problem 5: Stable Softmax** (`examples/05_softmax.cpp`) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
+6. **Problem 6: FMA Memory vs Compute Bound** (`examples/06_fma.cpp`) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
+7. **Problem 7: Horizontal Image Blur** (`examples/07_filter.cpp`) - Applies a sliding-window blur and shows limits from overlapping memory loads.
+8. **Problem 8: 1D Convolution Tradeoff** (`examples/08_conv1d.cpp`) - Shows a small-kernel convolution where explicit SIMD may lose to auto-vectorized scalar code.
 
 ### Measured Results
 
@@ -294,20 +294,20 @@ Understanding what instructions your CPU actually executes is crucial for perfor
 
 **ARM NEON (macOS/Apple Silicon):**
 ```bash
-g++-15 -std=c++2b -O3 -mcpu=apple-m1 -S 01_add.cpp -o 01_add.s
+g++-15 -std=c++2b -O3 -mcpu=apple-m1 -S examples/01_add.cpp -o 01_add.s
 grep -E 'fadd\s+v[0-9]+\.4s' 01_add.s   # Look for NEON vector ops
 ```
 
 **x86 AVX-512 (Linux/Intel):**
 ```bash
-g++ -std=c++2b -O3 -march=native -S 01_add.cpp -o 01_add.s
+g++ -std=c++2b -O3 -march=native -S examples/01_add.cpp -o 01_add.s
 grep -E 'vaddps|vmulps' 01_add.s        # Look for AVX vector ops
 ```
 
 **RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -I. \
-  01_add.cpp -o /tmp/01_add.riscv
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Iexamples \
+  examples/01_add.cpp -o /tmp/01_add.riscv
 
 riscv64-linux-objdump -d /tmp/01_add.riscv | \
   grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
@@ -355,7 +355,7 @@ NEON uses a clear syntax: `instruction destination, source1, source2`
 - `.4s` suffix = interpret as 4 single-precision floats
 - `.2d` suffix = interpret as 2 double-precision floats
 
-**Example from `01_add.cpp` (vector addition):**
+**Example from `examples/01_add.cpp` (vector addition):**
 ```assembly
 # Load 4 floats from memory into v30
 ld1 {v30.4s}, [x1]          # x1 = pointer to array
@@ -388,7 +388,7 @@ Result v30:   [c0, c1, c2, c3]  (4 results computed in parallel)
 - `fmax v.4s, v1.4s, v2.4s` - Element-wise maximum
 - `fdiv v.4s, v1.4s, v2.4s` - Element-wise division
 
-**Example from `06_fma.cpp` (FMA operation):**
+**Example from `examples/06_fma.cpp` (FMA operation):**
 ```assembly
 # Fused multiply-add: v31 = v31 + (v27 * v30)
 fmla v31.4s, v27.4s, v30.4s
@@ -410,7 +410,7 @@ AVX-512 has more complex syntax with Intel's legacy from SSE/AVX. The `v` prefix
 - `ymm0` to `ymm31` = 256-bit vector registers (AVX/AVX2, lower 256 bits of zmm)
 - `xmm0` to `xmm31` = 128-bit vector registers (SSE, lower 128 bits of zmm)
 
-**Example from `01_add.cpp` (vector addition):**
+**Example from `examples/01_add.cpp` (vector addition):**
 ```assembly
 # Load 16 floats (64 bytes) from memory into zmm1
 vmovups zmm1, zmmword ptr [rsi + 4*rax]    # rsi = base address, rax = index
@@ -455,7 +455,7 @@ vcmpps k1, zmm1, zmm2, 30              # 30 = greater-than predicate
 vaddps zmm0 {k1}, zmm3, zmm4           # zmm0[i] = (k1[i] ? zmm3[i]+zmm4[i] : zmm0[i])
 ```
 
-**Example from `06_fma.cpp` (FMA operation):**
+**Example from `examples/06_fma.cpp` (FMA operation):**
 ```assembly
 # Fused multiply-add: zmm0 = zmm0 + (zmm1 * zmm2)
 vfmadd231ps zmm0, zmm1, zmm2
@@ -478,7 +478,7 @@ Unlike NEON (fixed 128-bit) and AVX-512 (fixed 512-bit), RISC-V vectors have run
 vsetvli t0, a0, e32, m1    # t0 = min(a0, VLEN/32), e32 = 32-bit elements, m1 = 1 register
 ```
 
-**Example of what `01_add.cpp` generates:**
+**Example of what `examples/01_add.cpp` generates:**
 ```assembly
 # Set vector type: 32-bit float elements
 vsetvli t0, a2, e32, m1       # t0 = actual vector length used
@@ -595,7 +595,7 @@ For complete annotated assembly examples showing exactly what each instruction d
 
 ## Example 1: Vector Add
 
-**File**: [`01_add.cpp`](01_add.cpp)
+**File**: [`examples/01_add.cpp`](examples/01_add.cpp)
 
 Every SIMD operation follows the same three-step pattern: load data from memory into a SIMD register, perform the computation on all elements simultaneously, then store the results back to memory. This example shows this pattern applied to array addition. The key insight here is understanding how the loop processes `W` elements (the SIMD width) per iteration—on AVX-512 that's 16 floats, on AVX2 it's 8, and on ARM NEON it's 4. The scalar version uses a pragma to disable auto-vectorization so you can see the true cost of element-by-element processing versus the SIMD version.
 
@@ -659,7 +659,7 @@ void add_simd(float* dst, const float* src, size_t n) {
 
 ## Example 2: Sum Reduction
 
-**File**: [`02_sum.cpp`](02_sum.cpp)
+**File**: [`examples/02_sum.cpp`](examples/02_sum.cpp)
 
 This example demonstrates horizontal reduction—converting a SIMD register containing multiple values into a single scalar result by summing all elements. The pattern is: accumulate partial sums in a SIMD register (each lane gets the sum of W elements), then use `stdx::reduce()` to horizontally sum all lanes. This is where explicit SIMD really shines, as compilers struggle to auto-vectorize reductions due to the loop-carried dependency (each iteration depends on the previous sum). You'll see significant speedup (~5x) here compared to simple operations like add, because this is compute-bound rather than memory-bound.
 
@@ -727,7 +727,7 @@ The SIMD version adds elements in a different order than scalar, causing differe
 
 ## Example 3: Clamp with Masks
 
-**File**: [`03_clamp.cpp`](03_clamp.cpp)
+**File**: [`examples/03_clamp.cpp`](examples/03_clamp.cpp)
 
 Masked operations allow you to apply computations conditionally to individual elements within a SIMD register, without using branches. When you compare two SIMD vectors (e.g., `v > vhi`), you get a mask where each lane is true or false. The `stdx::where(mask, value)` construct then acts as a conditional update: elements where the mask is true get the new value, while others remain unchanged. On CPUs with AVX-512, this compiles to specialized blend instructions that are very efficient. However, this example also serves as an important lesson: not all operations benefit from explicit SIMD. The clamp operation is so simple that the overhead of creating masks and applying conditional updates can exceed the benefit—you may actually see the SIMD version run slower than the scalar version.
 
@@ -779,7 +779,7 @@ void clamp_simd(float* a, size_t n, float hi) {
 
 ## Example 4: Count with Popcount
 
-**File**: [`04_count.cpp`](04_count.cpp)
+**File**: [`examples/04_count.cpp`](examples/04_count.cpp)
 
 This example demonstrates how to efficiently count elements that satisfy a condition using popcount. The approach is elegant: create a mask by comparing each element to a threshold (producing a SIMD mask where true/false becomes 1/0), then use `stdx::popcount()` to count all the 1-bits in a single operation. On modern CPUs with AVX-512, this uses the dedicated `VPOPCNTD` instruction. This is far more efficient than a scalar loop with branches, which suffers from branch misprediction penalties. Popcount is foundational for many algorithms including histograms, threshold filtering, and diversity counting in parallel reductions.
 
@@ -831,14 +831,14 @@ size_t count_simd(const float* a, size_t n, float thr) {
 
 ### At a Glance (What It Is / What It Is Not)
 
-- **Example 5 (`05_softmax.cpp`)**: stable softmax with SIMD passes; **not** a full ML inference pipeline.
-- **Example 6 (`06_fma.cpp`)**: FMA microbenchmark comparing memory-bound and compute-bound kernels; **not** convolution.
-- **Example 7 (`07_filter.cpp`)**: horizontal image blur with sliding window; **not** a full 2D stencil optimization study.
-- **Example 8 (`08_conv1d.cpp`)**: 1D small-kernel convolution showing when explicit SIMD can lose; **not** a general-purpose convolution library.
+- **Example 5 (`examples/05_softmax.cpp`)**: stable softmax with SIMD passes; **not** a full ML inference pipeline.
+- **Example 6 (`examples/06_fma.cpp`)**: FMA microbenchmark comparing memory-bound and compute-bound kernels; **not** convolution.
+- **Example 7 (`examples/07_filter.cpp`)**: horizontal image blur with sliding window; **not** a full 2D stencil optimization study.
+- **Example 8 (`examples/08_conv1d.cpp`)**: 1D small-kernel convolution showing when explicit SIMD can lose; **not** a general-purpose convolution library.
 
 ## Example 5: Numerically Stable Softmax
 
-**File**: [`05_softmax.cpp`](05_softmax.cpp)
+**File**: [`examples/05_softmax.cpp`](examples/05_softmax.cpp)
 
 Softmax is a fundamental operation in machine learning, but naive implementation suffers from numerical overflow. This example implements the stable version: `softmax(x_i) = exp(x_i - max(x)) / Σ exp(x_j - max(x))`. By subtracting the maximum value before exponentiation, we ensure all arguments to exp() are non-positive, preventing overflow. The implementation uses three passes: first find the maximum, then compute exp() and sum, then normalize. This demonstrates several advanced SIMD concepts including horizontal reductions (`stdx::hmax()` for finding the maximum across all lanes), polynomial approximation for functions not provided by the standard library, and chaining multiple passes over the same data. The polynomial uses Horner's method for efficient evaluation.
 
@@ -917,7 +917,7 @@ void softmax_simd(float* x, size_t n) {
 
 ## Example 6: FMA - Memory vs Compute Bound
 
-**File**: [`06_fma.cpp`](06_fma.cpp)
+**File**: [`examples/06_fma.cpp`](examples/06_fma.cpp)
 
 Fused Multiply-Add (FMA) computes `a*b + c` in a single CPU instruction rather than two separate operations (multiply then add). This provides two benefits: higher precision because there's only one rounding instead of two, and higher throughput since it's a single instruction.
 
@@ -979,7 +979,7 @@ float dot_simd(const float* a, const float* b, std::size_t n) {
 
 ## Example 7: Image Processing (Horizontal Blur)
 
-**File**: [`07_filter.cpp`](07_filter.cpp)
+**File**: [`examples/07_filter.cpp`](examples/07_filter.cpp)
 
 This example demonstrates a common image processing pattern: sliding window operations. We apply a simple horizontal blur where each output pixel is the average of itself and its two horizontal neighbors: `out[x] = (in[x-1] + in[x] + in[x+1]) / 3`.
 
@@ -1040,7 +1040,7 @@ Memory bandwidth becomes the bottleneck, not compute. For better performance, co
 
 ## Example 8: When SIMD Makes Things Worse
 
-**File**: [`08_conv1d.cpp`](08_conv1d.cpp)
+**File**: [`examples/08_conv1d.cpp`](examples/08_conv1d.cpp)
 
 This example uses a 1D convolution with a small kernel to show that explicit SIMD can be slower than scalar code that the compiler auto-vectorizes well.
 
@@ -1128,7 +1128,7 @@ module load intel/2025.2
 module load gcc/13.2.0
 
 # Compile with Intel
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd 01_add.cpp -o 01_add_intel
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd examples/01_add.cpp -o 01_add_intel
 ```
 
 ### Recommendations

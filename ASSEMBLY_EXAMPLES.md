@@ -247,7 +247,7 @@ This is the fundamental reason SIMD is faster!
 
 ## Advanced Example: Fused Multiply-Add (FMA)
 
-C++ code from `06_fma.cpp`:
+C++ code from `examples/06_fma.cpp`:
 ```cpp
 for (int j = 0; j < K; ++j) {
     V kv(k[j]);
@@ -295,15 +295,15 @@ vfmadd231ps zmm0, zmm1, zmm2     # zmm0 += zmm1 * zmm2
 
 ```bash
 # ARM NEON (on Apple Silicon Mac)
-g++-15 -std=c++2b -O3 -mcpu=apple-m1 -S 01_add.cpp -o 01_add.s
+g++-15 -std=c++2b -O3 -mcpu=apple-m1 -S examples/01_add.cpp -o 01_add.s
 less 01_add.s  # Search for add_simd function
 
 # x86 AVX-512 (on Linux)
-g++ -std=c++2b -O3 -march=native -mavx512f -S 01_add.cpp -o 01_add.s
+g++ -std=c++2b -O3 -march=native -mavx512f -S examples/01_add.cpp -o 01_add.s
 less 01_add.s  # Search for add_simd function
 
 # RISC-V (cross-compile)
-riscv64-linux-gnu-g++ -std=c++2b -O3 -march=rv64gcv -S 01_add.cpp -o 01_add.s
+riscv64-linux-gnu-g++ -std=c++2b -O3 -march=rv64gcv -S examples/01_add.cpp -o 01_add.s
 less 01_add.s  # Search for add_simd function
 
 # Clean up C++ name mangling
