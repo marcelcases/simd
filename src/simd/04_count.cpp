@@ -1,47 +1,27 @@
-#include "../simd_common.h"
+#include "simd_examples/04_count.hpp"
+#include "simd_common.h"
 
-using namespace simd_examples;
+namespace simd_examples::simd {
 
-// Example 4: explicit SIMD threshold count with mask popcount.
-std::size_t count_simd(const float* a, std::size_t n, float threshold) {
-    using V = native_simd<float>;
-    using M = native_mask<float>;
-    constexpr std::size_t width = V::size();
+std::size_t count_above(const float* values, std::size_t size, float threshold) noexcept {
+    using vector_type = native_simd<float>;
+    using mask_type = native_mask<float>;
+    constexpr std::size_t width = vector_type::size();
 
-    const V threshold_vector(threshold);
+    const vector_type threshold_vector(threshold);
     std::size_t count = 0;
     std::size_t i = 0;
-    for (; i + width <= n; i += width) {
-        V values;
-        values.copy_from(a + i, stdx::element_aligned);
-        const M mask = values > threshold_vector;
+    for (; i + width <= size; i += width) {
+        vector_type vector;
+        vector.copy_from(values + i, stdx::element_aligned);
+        const mask_type mask = vector > threshold_vector;
         count += stdx::popcount(mask);
     }
-    for (; i < n; ++i) {
-        if (a[i] > threshold) ++count;
+
+    for (; i < size; ++i) {
+        if (values[i] > threshold) ++count;
     }
     return count;
 }
 
-int main() {
-    std::cout << "=== Example 4: SIMD Threshold Count ===\n\n";
-
-    const std::size_t N = 1ULL << 24;
-    const float threshold = 0.f;
-    std::vector<float> values(N);
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> distribution(-1.f, 1.f);
-    for (auto& value : values) value = distribution(rng);
-
-    const double time = bench_ms([&]() -> std::size_t {
-        return count_simd(values.data(), N, threshold);
-    });
-    const std::size_t count = count_simd(values.data(), N, threshold);
-
-    std::cout << "Array size: " << N << " elements\n";
-    std::cout << "Threshold:  " << threshold << "\n";
-    std::cout << "SIMD width: " << native_simd<float>::size() << " floats\n";
-    std::cout << "SIMD time:  " << time << " ms\n";
-    std::cout << "SIMD count: " << count << "\n";
-    return 0;
-}
+} // namespace simd_examples::simd

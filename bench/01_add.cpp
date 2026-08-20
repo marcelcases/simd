@@ -1,6 +1,5 @@
-#include "common.h"
+#include "benchmark_common.hpp"
 #include "simd_examples/01_add.hpp"
-#include "simd_common.h"
 
 #include <fstream>
 #include <string_view>
@@ -46,10 +45,10 @@ bool parse_options(int argc, char** argv, Options& options) {
 void write_csv(std::ostream& output, const Options& options,
                double scalar_time, double simd_time,
                float scalar_checksum, float simd_checksum, float max_difference) {
-    output << "exercise,implementation,size,repetitions,time_ms,checksum,max_abs_difference\n";
-    output << "01_add,scalar," << options.size << "," << options.repetitions << ","
+    output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
+    output << "01_add,add,scalar," << options.size << "," << options.repetitions << ","
            << scalar_time << "," << scalar_checksum << "," << max_difference << "\n";
-    output << "01_add,simd," << options.size << "," << options.repetitions << ","
+    output << "01_add,add,simd," << options.size << "," << options.repetitions << ","
            << simd_time << "," << simd_checksum << "," << max_difference << "\n";
 }
 
@@ -69,17 +68,17 @@ int main(int argc, char** argv) {
     scalar_destination = source;
     simd_destination = source;
 
-    const double scalar_time = simd_examples::bench_ms([&]() -> float {
+    const double scalar_time = simd_examples::benchmark::best_time_ms([&] { scalar_destination = source; }, [&]() -> float {
         simd_examples::scalar::add(
             scalar_destination.data(), source.data(), options.size);
-        return simd_examples::checksum(
+        return simd_examples::benchmark::checksum(
             scalar_destination.begin(), scalar_destination.end());
     }, options.repetitions);
 
-    const double simd_time = simd_examples::bench_ms([&]() -> float {
+    const double simd_time = simd_examples::benchmark::best_time_ms([&] { simd_destination = source; }, [&]() -> float {
         simd_examples::simd::add(
             simd_destination.data(), source.data(), options.size);
-        return simd_examples::checksum(
+        return simd_examples::benchmark::checksum(
             simd_destination.begin(), simd_destination.end());
     }, options.repetitions);
 
@@ -90,9 +89,9 @@ int main(int argc, char** argv) {
             std::abs(scalar_destination[i] - simd_destination[i]));
     }
 
-    const float scalar_checksum = simd_examples::checksum(
+    const float scalar_checksum = simd_examples::benchmark::checksum(
         scalar_destination.begin(), scalar_destination.end());
-    const float simd_checksum = simd_examples::checksum(
+    const float simd_checksum = simd_examples::benchmark::checksum(
         simd_destination.begin(), simd_destination.end());
 
     if (options.output.empty()) {

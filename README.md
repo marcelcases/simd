@@ -118,30 +118,31 @@ b.copy_to(ptr, stdx::element_aligned);    // Store
 ### Quick Start
 
 ```bash
-make                             # Build everything
-make bench                       # Build benchmark drivers
-./build/01_add_bench --size 1000000 --repetitions 10
-scripts/benchmark_01_add.sh      # Write results/01_add.csv
-
-# Exercises 2–8 are temporarily standalone executables.
-make scalar
-make simd
+make
 make run
+
+# One-dimensional exercises: --size, --repetitions, --output
+scripts/benchmark.sh 05_softmax --size 1000000 --repetitions 10 \
+  --output results/05_softmax.csv
+
+# Image filter: --width, --height, --repetitions, --output
+scripts/benchmark.sh 07_filter --width 1920 --height 1080 --repetitions 10 \
+  --output results/07_filter.csv
 ```
 
 Source layout:
 
 ```text
 include/             # Interfaces shared by implementations and drivers
-src/scalar/          # Scalar implementations (01_add is the reference layout)
-src/simd/            # Explicit std::simd implementations (01_add is the reference layout)
-bench/               # C++ correctness/timing drivers with main()
+src/scalar/          # Pure scalar algorithms; auto-vectorization disabled
+src/simd/            # Pure explicit std::simd algorithms
+bench/               # C++ correctness/timing drivers with main(), CSV output
 scripts/             # Shell orchestration of benchmark runs
 ```
 
-`01_add` is the reference layout: its algorithm sources contain no `main()`, I/O,
-random input generation, timing, or reporting. Its driver emits CSV, while the shell
-script selects parameters and stores results. Exercises 2–8 will follow this pattern.
+Algorithm sources contain no `main()`, I/O, random input generation, timing, or
+reporting. Drivers perform reproducible setup, correctness checks, and precise timing.
+Shell scripts select parameters and store CSV results.
 
 All generated binaries and assembly are placed in the ignored `build/` directory.
 Benchmark CSV output is stored in ignored `results/`.
@@ -160,7 +161,7 @@ make
 # For Intel compiler (recommended for better performance):
 module load intel/2025.2
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Iinclude -Isrc \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
   bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
   -o build/01_add_bench_intel
 ```
@@ -320,19 +321,19 @@ Understanding what instructions your CPU actually executes is crucial for perfor
 
 **ARM NEON (macOS/Apple Silicon):**
 ```bash
-g++-15 -std=c++2b -O3 -mcpu=apple-m1 -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
+g++-15 -std=c++2b -O3 -mcpu=apple-m1 -Ibench -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
 grep -E 'fadd\s+v[0-9]+\.4s' build/01_add_simd.s   # Look for NEON vector ops
 ```
 
 **x86 AVX-512 (Linux/Intel):**
 ```bash
-g++ -std=c++2b -O3 -march=native -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
+g++ -std=c++2b -O3 -march=native -Ibench -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
 grep -E 'vaddps|vmulps' build/01_add_simd.s        # Look for AVX vector ops
 ```
 
 **RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Iinclude -Isrc \
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Ibench -Iinclude -Isrc \
   bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
   -o /tmp/01_add.riscv
 
@@ -1156,7 +1157,7 @@ module load gcc/14.1.0_binutils241
 
 # Compile with Intel
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Iinclude -Isrc \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
   bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
   -o build/01_add_bench_intel
 ```

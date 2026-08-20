@@ -1,7 +1,6 @@
-#ifndef SIMD_COMMON_H
-#define SIMD_COMMON_H
+#pragma once
 
-#include "common.h"
+#include <cstddef>
 #include <experimental/simd>
 
 namespace stdx = std::experimental;
@@ -15,5 +14,3 @@ template<class T>
 using native_mask = stdx::simd_mask<T, stdx::simd_abi::native<T>>;
 
 } // namespace simd_examples
-
-#endif

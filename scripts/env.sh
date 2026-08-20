@@ -9,6 +9,7 @@ module load gcc/14.1.0_binutils241
 # 3. Verify the compiler
 # g++ --version
 
-# 4. Build and run explicit SIMD examples
-# make simd
-# ./build/01_add_simd
+# 4. Build and run benchmark drivers
+# make bench
+# ./build/01_add_bench
+# scripts/benchmark.sh 01_add --output results/01_add.csv
