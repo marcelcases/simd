@@ -288,17 +288,17 @@ The scalar targets receive `-fno-tree-vectorize` and `-fno-tree-loop-distribute-
 
 #### Basic Examples
 
-1. **Problem 1: Vector Add** ([scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp)) - Adds two arrays element-wise and introduces the basic SIMD loop pattern.
+1. **Problem 1: Element-wise Array Addition** ([scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp)) - Adds two arrays element-wise and introduces the basic SIMD loop pattern.
 2. **Problem 2: Sum Reduction** ([scalar](src/scalar/02_sum.cpp) · [SIMD](src/simd/02_sum.cpp)) - Sums a large array using SIMD accumulation and horizontal reduction.
-3. **Problem 3: Clamp with Masks** ([scalar](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp)) - Applies an upper bound using SIMD comparisons and masked assignment.
-4. **Problem 4: Count with Popcount** ([scalar](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp)) - Counts elements above a threshold using masks plus popcount.
+3. **Problem 3: Upper-Bound Clamp** ([scalar](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp)) - Applies an upper bound using SIMD comparisons and masked assignment.
+4. **Problem 4: Count Above Threshold** ([scalar](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp)) - Counts elements above a threshold using masks plus popcount.
 
 #### Advanced Examples
 
-5. **Problem 5: Stable Softmax** ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
-6. **Problem 6: FMA Memory vs Compute Bound** ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
+5. **Problem 5: Numerically Stable Softmax** ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
+6. **Problem 6: FMA and Dot Product** ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
 7. **Problem 7: Horizontal Image Blur** ([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp)) - Applies a sliding-window blur and shows limits from overlapping memory loads.
-8. **Problem 8: 1D Convolution Tradeoff** ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) - Shows a small-kernel convolution where explicit SIMD may lose to a simple scalar loop.
+8. **Problem 8: 1D Mathematical Convolution** ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) - Shows a small-kernel convolution where explicit SIMD may lose to a simple scalar loop.
 
 ### Measured Results
 
@@ -635,7 +635,7 @@ For complete annotated assembly examples showing exactly what each instruction d
 
 # Basic Examples
 
-## Example 1: Vector Add
+## Example 1: Element-wise Array Addition
 
 **Sources**: [scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp)
 
@@ -762,7 +762,7 @@ The SIMD version adds elements in a different order than scalar, causing differe
 
 ---
 
-## Example 3: Clamp with Masks
+## Example 3: Upper-Bound Clamp
 
 **Sources**: [scalar](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp)
 
@@ -814,7 +814,7 @@ void clamp_simd(float* a, size_t n, float hi) {
 
 ---
 
-## Example 4: Count with Popcount
+## Example 4: Count Above Threshold
 
 **Sources**: [scalar](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp)
 
@@ -868,10 +868,10 @@ size_t count_simd(const float* a, size_t n, float thr) {
 
 ### At a Glance (What It Is / What It Is Not)
 
-- **Example 5 ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp))**: stable softmax with SIMD passes; **not** a full ML inference pipeline.
-- **Example 6 ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp))**: FMA microbenchmark comparing memory-bound and compute-bound kernels; **not** convolution.
+- **Example 5 ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp))**: numerically stable softmax with SIMD passes; **not** a full ML inference pipeline.
+- **Example 6 ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp))**: memory-bound FMA and compute-bound dot product; **not** convolution.
 - **Example 7 ([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp))**: horizontal image blur with sliding window; **not** a full 2D stencil optimization study.
-- **Example 8 ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp))**: 1D small-kernel convolution showing when explicit SIMD can lose; **not** a general-purpose convolution library.
+- **Example 8 ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp))**: valid 1D mathematical convolution with a small kernel; **not** a general-purpose convolution library.
 
 ## Example 5: Numerically Stable Softmax
 
@@ -952,7 +952,7 @@ void softmax_simd(float* x, size_t n) {
 
 ---
 
-## Example 6: FMA - Memory vs Compute Bound
+## Example 6: FMA and Dot Product
 
 **Sources**: [scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)
 
@@ -1075,7 +1075,7 @@ Memory bandwidth becomes the bottleneck, not compute. For better performance, co
 
 ---
 
-## Example 8: When SIMD Makes Things Worse
+## Example 8: 1D Mathematical Convolution
 
 **Sources**: [scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)
 
