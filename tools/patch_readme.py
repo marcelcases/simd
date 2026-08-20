@@ -49,8 +49,9 @@ content = re.sub(r'\| RISC-V \(macOS compile-only\).*?\n', '', content)
 # 3. Update the bash block for RISC-V RVV (GCC 15.1)
 old_bash = """**RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-unknown-elf-g++ -std=c++2b -march=rv64gcv -O3 -Isrc \\
-  src/simd/01_add.cpp -o /tmp/01_add.riscv
+riscv64-unknown-elf-g++ -std=c++2b -march=rv64gcv -O3 -Iinclude -Isrc \\
+  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \\
+  -o /tmp/01_add.riscv
 
 riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \\
   grep -E 'vsetvli|vle32\\.v|vse32\\.v|vfadd\\.vv|vfmul\\.vv|vfmacc\\.vv|vfred'
@@ -58,8 +59,9 @@ riscv64-unknown-elf-objdump -d /tmp/01_add.riscv | \\
 
 new_bash = """**RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Isrc \\
-  src/simd/01_add.cpp -o /tmp/01_add.riscv
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Iinclude -Isrc \\
+  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \\
+  -o /tmp/01_add.riscv
 
 riscv64-linux-objdump -d /tmp/01_add.riscv | \\
   grep -E 'vsetvli|vle32\\.v|vse32\\.v|vfadd\\.vv|vfmul\\.vv|vfmacc\\.vv|vfred'

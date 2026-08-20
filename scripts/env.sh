@@ -4,7 +4,7 @@
 # 2. Load the compiler environment
 module purge
 module load intel/2025.2
-module load gcc/13.2.0
+module load gcc/14.1.0_binutils241
 
 # 3. Verify the compiler
 # g++ --version

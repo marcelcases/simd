@@ -118,25 +118,33 @@ b.copy_to(ptr, stdx::element_aligned);    // Store
 ### Quick Start
 
 ```bash
-make                    # Build scalar and SIMD binaries
-make scalar             # Build only scalar baselines
-make simd               # Build only explicit SIMD versions
-make run                # Run both sets
-make run-scalar         # Run scalar baselines
-make run-simd           # Run explicit SIMD versions
-./build/01_add_scalar  # Run one scalar example
-./build/01_add_simd    # Run its SIMD counterpart
+make                             # Build everything
+make bench                       # Build benchmark drivers
+./build/01_add_bench --size 1000000 --repetitions 10
+scripts/benchmark_01_add.sh      # Write results/01_add.csv
+
+# Exercises 2–8 are temporarily standalone executables.
+make scalar
+make simd
+make run
 ```
 
 Source layout:
 
 ```text
-src/scalar/  # Scalar baselines; auto-vectorization disabled for comparison
-src/simd/    # Explicit std::simd implementations
-src/common.h # Shared benchmark and data helpers
+include/             # Interfaces shared by implementations and drivers
+src/scalar/          # Scalar implementations (01_add is the reference layout)
+src/simd/            # Explicit std::simd implementations (01_add is the reference layout)
+bench/               # C++ correctness/timing drivers with main()
+scripts/             # Shell orchestration of benchmark runs
 ```
 
+`01_add` is the reference layout: its algorithm sources contain no `main()`, I/O,
+random input generation, timing, or reporting. Its driver emits CSV, while the shell
+script selects parameters and stores results. Exercises 2–8 will follow this pattern.
+
 All generated binaries and assembly are placed in the ignored `build/` directory.
+Benchmark CSV output is stored in ignored `results/`.
 
 ### Platform-Specific Setup
 
@@ -144,7 +152,7 @@ All generated binaries and assembly are placed in the ignored `build/` directory
 
 ```bash
 module purge
-module load gcc/13.2.0
+module load gcc/14.1.0_binutils241
 
 # For GCC compilation:
 make
@@ -152,8 +160,9 @@ make
 # For Intel compiler (recommended for better performance):
 module load intel/2025.2
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Isrc \
-  src/simd/01_add.cpp -o build/01_add_simd_intel
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Iinclude -Isrc \
+  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
+  -o build/01_add_bench_intel
 ```
 
 #### macOS (Apple Silicon / Intel)
@@ -311,20 +320,21 @@ Understanding what instructions your CPU actually executes is crucial for perfor
 
 **ARM NEON (macOS/Apple Silicon):**
 ```bash
-g++-15 -std=c++2b -O3 -mcpu=apple-m1 -S src/simd/01_add.cpp -o build/01_add_simd.s
+g++-15 -std=c++2b -O3 -mcpu=apple-m1 -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
 grep -E 'fadd\s+v[0-9]+\.4s' build/01_add_simd.s   # Look for NEON vector ops
 ```
 
 **x86 AVX-512 (Linux/Intel):**
 ```bash
-g++ -std=c++2b -O3 -march=native -S src/simd/01_add.cpp -o build/01_add_simd.s
+g++ -std=c++2b -O3 -march=native -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
 grep -E 'vaddps|vmulps' build/01_add_simd.s        # Look for AVX vector ops
 ```
 
 **RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Isrc \
-  src/simd/01_add.cpp -o /tmp/01_add.riscv
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Iinclude -Isrc \
+  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
+  -o /tmp/01_add.riscv
 
 riscv64-linux-objdump -d /tmp/01_add.riscv | \
   grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
@@ -1142,10 +1152,13 @@ void my_scalar_function(...) { ... }
 ```bash
 module purge
 module load intel/2025.2
-module load gcc/13.2.0
+module load gcc/14.1.0_binutils241
 
 # Compile with Intel
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd src/simd/01_add.cpp -o build/01_add_simd_intel
+mkdir -p build
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Iinclude -Isrc \
+  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
+  -o build/01_add_bench_intel
 ```
 
 ### Recommendations
