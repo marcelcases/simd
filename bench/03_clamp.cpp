@@ -1,7 +1,7 @@
 #include "benchmark_common.hpp"
 #include "simd_examples/03_clamp.hpp"
-
-#include <fstream>
+#include "benchmark_implementation.hpp"
+#include "benchmark_reference.hpp"
 
 namespace {
 
@@ -9,13 +9,11 @@ using simd_examples::benchmark::OneDimOptions;
 using simd_examples::benchmark::ParseResult;
 
 void write_csv(std::ostream& output, const OneDimOptions& options,
-               double scalar_time, double simd_time,
-               float scalar_result, float simd_result, float difference) {
+               double time, float result, float difference) {
     output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
-    output << "03_clamp,clamp,scalar," << options.size << "," << options.repetitions << ","
-           << scalar_time << "," << scalar_result << "," << difference << "\n";
-    output << "03_clamp,clamp,simd," << options.size << "," << options.repetitions << ","
-           << simd_time << "," << simd_result << "," << difference << "\n";
+    output << "03_clamp,clamp," << simd_examples::benchmark::implementation_name << ","
+           << options.size << "," << options.repetitions << ","
+           << time << "," << result << "," << difference << "\n";
 }
 
 } // namespace
@@ -23,45 +21,38 @@ void write_csv(std::ostream& output, const OneDimOptions& options,
 int main(int argc, char** argv) {
     OneDimOptions options;
     const auto parsed = simd_examples::benchmark::parse_one_dim_options(
-        argc, argv, options, "03_clamp_bench");
+        argc, argv, options, "03_clamp");
     if (parsed != ParseResult::success) {
         if (parsed == ParseResult::error) {
-            simd_examples::benchmark::print_one_dim_usage("03_clamp_bench");
+            simd_examples::benchmark::print_one_dim_usage("03_clamp");
         }
         return parsed == ParseResult::help ? 0 : 1;
     }
 
     constexpr float upper_bound = 0.5f;
-    std::vector<float> input(options.size), scalar_values, simd_values;
+    std::vector<float> input(options.size), values, expected;
     std::mt19937 rng(42);
     std::uniform_real_distribution<float> distribution(-1.f, 1.f);
     for (auto& value : input) value = distribution(rng);
-    scalar_values = input;
-    simd_values = input;
+    values = input;
+    expected = input;
+    simd_examples::benchmark::reference::clamp(
+        expected.data(), options.size, upper_bound);
 
-    const double scalar_time = simd_examples::benchmark::best_time_ms([&] { scalar_values = input; }, [&] {
-        simd_examples::scalar::clamp(scalar_values.data(), options.size, upper_bound);
-    }, options.repetitions);
-    const double simd_time = simd_examples::benchmark::best_time_ms([&] { simd_values = input; }, [&] {
-        simd_examples::simd::clamp(simd_values.data(), options.size, upper_bound);
-    }, options.repetitions);
-
+    const double time = simd_examples::benchmark::best_time_ms(
+        [&] { values = input; },
+        [&] {
+            simd_examples::benchmark::implementation::clamp(
+                values.data(), options.size, upper_bound);
+        }, options.repetitions);
+    const float result = simd_examples::benchmark::checksum(
+        values.begin(), values.end());
     const float difference = simd_examples::benchmark::max_abs_difference(
-        scalar_values.data(), simd_values.data(), options.size);
-    const float scalar_result = simd_examples::benchmark::checksum(
-        scalar_values.begin(), scalar_values.end());
-    const float simd_result = simd_examples::benchmark::checksum(
-        simd_values.begin(), simd_values.end());
+        values.data(), expected.data(), options.size);
 
-    if (options.output.empty()) {
-        write_csv(std::cout, options, scalar_time, simd_time,
-                  scalar_result, simd_result, difference);
-    } else {
-        std::ofstream output(options.output);
-        if (!output) return 1;
-        write_csv(output, options, scalar_time, simd_time,
-                  scalar_result, simd_result, difference);
-    }
-
-    return difference == 0.f ? 0 : 1;
+    const bool written = simd_examples::benchmark::write_output(
+        options.output, [&](std::ostream& output) {
+            write_csv(output, options, time, result, difference);
+        });
+    return written && difference <= 1e-6f ? 0 : 1;
 }

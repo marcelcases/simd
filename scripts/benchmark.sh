@@ -11,7 +11,7 @@ cd "$root"
 
 # MN5: load the compiler and its runtime library when available.
 if type module >/dev/null 2>&1 && [[ -d /apps/GPP/GCC/14.1.0_binutils241 ]]; then
-    module load gcc/14.1.0_binutils241
+    module load gcc/14.1.0_binutils241 >&2
 fi
 
 exercise="$1"
@@ -24,12 +24,42 @@ case "$exercise" in
         ;;
 esac
 
+output=""
 for ((i = 1; i <= $#; ++i)); do
-    if [[ "${!i}" == "--output" ]] && (( i < $# )); then
+    if [[ "${!i}" == "--output" ]]; then
+        if (( i == $# )); then
+            echo "--output requires a file" >&2
+            exit 1
+        fi
         next=$((i + 1))
-        mkdir -p "$(dirname "${!next}")"
+        output="${!next}"
     fi
 done
 
-make "build/${exercise}_bench"
-"./build/${exercise}_bench" "$@"
+if [[ -n "$output" ]]; then
+    mkdir -p "$(dirname "$output")"
+fi
+
+make --no-print-directory -s \
+    "build/${exercise}_scalar" "build/${exercise}_simd"
+
+temporary_directory="$(mktemp -d "${TMPDIR:-/tmp}/simd-benchmark.XXXXXX")"
+trap 'rm -rf "$temporary_directory"' EXIT
+
+scalar_output="$temporary_directory/scalar.csv"
+simd_output="$temporary_directory/simd.csv"
+
+"./build/${exercise}_scalar" "$@" --output "$scalar_output"
+"./build/${exercise}_simd" "$@" --output "$simd_output"
+
+write_combined_output() {
+    head -n 1 "$scalar_output"
+    tail -n +2 "$scalar_output"
+    tail -n +2 "$simd_output"
+}
+
+if [[ -n "$output" ]]; then
+    write_combined_output > "$output"
+else
+    write_combined_output
+fi

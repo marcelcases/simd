@@ -119,7 +119,14 @@ b.copy_to(ptr, stdx::element_aligned);    // Store
 
 ```bash
 make
+make scalar                 # Build only scalar executables
+make simd                   # Build only SIMD executables
 make run
+
+# Inspect or run one implementation directly.
+./build/01_add_scalar --size 1000000 --repetitions 10
+./build/01_add_simd --size 1000000 --repetitions 10
+make build/01_add_scalar.s build/01_add_simd.s
 
 # One-dimensional exercises: --size, --repetitions, --output
 scripts/benchmark.sh 05_softmax --size 1000000 --repetitions 10 \
@@ -140,9 +147,11 @@ bench/               # C++ correctness/timing drivers with main(), CSV output
 scripts/             # Shell orchestration of benchmark runs
 ```
 
-Algorithm sources contain no `main()`, I/O, random input generation, timing, or
-reporting. Drivers perform reproducible setup, correctness checks, and precise timing.
-Shell scripts select parameters and store CSV results.
+Each exercise builds isolated `build/<exercise>_scalar` and
+`build/<exercise>_simd` executables. Drivers perform reproducible setup, independent
+reference checks, and precise timing; the script runs both and combines their CSV rows.
+The CSV `max_abs_difference` column reports the difference from that reference.
+Algorithm sources contain no `main()`, I/O, random input generation, timing, or reporting.
 
 All generated binaries and assembly are placed in the ignored `build/` directory.
 Benchmark CSV output is stored in ignored `results/`.
@@ -162,8 +171,11 @@ make
 module load intel/2025.2
 mkdir -p build
 icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
-  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
-  -o build/01_add_bench_intel
+  -DSIMD_EXAMPLES_SCALAR bench/01_add.cpp src/scalar/01_add.cpp \
+  -o build/01_add_scalar_intel
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
+  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \
+  -o build/01_add_simd_intel
 ```
 
 #### macOS (Apple Silicon / Intel)
@@ -321,23 +333,23 @@ Understanding what instructions your CPU actually executes is crucial for perfor
 
 **ARM NEON (macOS/Apple Silicon):**
 ```bash
-g++-15 -std=c++2b -O3 -mcpu=apple-m1 -Ibench -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
+make build/01_add_scalar.s build/01_add_simd.s
 grep -E 'fadd\s+v[0-9]+\.4s' build/01_add_simd.s   # Look for NEON vector ops
 ```
 
 **x86 AVX-512 (Linux/Intel):**
 ```bash
-g++ -std=c++2b -O3 -march=native -Ibench -Iinclude -Isrc -S src/simd/01_add.cpp -o build/01_add_simd.s
+make build/01_add_scalar.s build/01_add_simd.s
 grep -E 'vaddps|vmulps' build/01_add_simd.s        # Look for AVX vector ops
 ```
 
 **RISC-V RVV (GCC 15.1):**
 ```bash
 riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Ibench -Iinclude -Isrc \
-  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
-  -o /tmp/01_add.riscv
+  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \
+  -o /tmp/01_add_simd.riscv
 
-riscv64-linux-objdump -d /tmp/01_add.riscv | \
+riscv64-linux-objdump -d /tmp/01_add_simd.riscv | \
   grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
 ```
 
@@ -1158,8 +1170,11 @@ module load gcc/14.1.0_binutils241
 # Compile with Intel
 mkdir -p build
 icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
-  bench/01_add.cpp src/scalar/01_add.cpp src/simd/01_add.cpp \
-  -o build/01_add_bench_intel
+  -DSIMD_EXAMPLES_SCALAR bench/01_add.cpp src/scalar/01_add.cpp \
+  -o build/01_add_scalar_intel
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
+  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \
+  -o build/01_add_simd_intel
 ```
 
 ### Recommendations

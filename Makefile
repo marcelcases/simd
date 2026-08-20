@@ -1,9 +1,18 @@
-# Scalar and std::simd algorithms with separate benchmark drivers.
+# Scalar and std::simd algorithms with isolated benchmark executables.
 
 BUILD_DIR := build
 EXERCISES := 01_add 02_sum 03_clamp 04_count 05_softmax 06_fma 07_filter 08_conv1d
-BENCH_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _bench,$(EXERCISES)))
-RISCV_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _bench.riscv,$(EXERCISES)))
+SCALAR_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _scalar,$(EXERCISES)))
+SIMD_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _simd,$(EXERCISES)))
+BENCH_TARGETS := $(SCALAR_TARGETS) $(SIMD_TARGETS)
+RISCV_SCALAR_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _scalar.riscv,$(EXERCISES)))
+RISCV_SIMD_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _simd.riscv,$(EXERCISES)))
+RISCV_TARGETS := $(RISCV_SCALAR_TARGETS) $(RISCV_SIMD_TARGETS)
+NATIVE_ASSEMBLY_TARGETS := \
+    $(addprefix $(BUILD_DIR)/,$(addsuffix _scalar.s,$(EXERCISES))) \
+    $(addprefix $(BUILD_DIR)/,$(addsuffix _simd.s,$(EXERCISES)))
+BENCH_DEPS := bench/benchmark_common.hpp bench/benchmark_implementation.hpp \
+    bench/benchmark_reference.hpp Makefile
 
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
@@ -34,33 +43,62 @@ all: bench
 
 bench: $(BENCH_TARGETS)
 
-$(BUILD_DIR)/%_bench: bench/%.cpp src/scalar/%.cpp src/simd/%.cpp include/simd_examples/%.hpp bench/benchmark_common.hpp src/simd_common.h Makefile
+scalar: $(SCALAR_TARGETS)
+
+simd: $(SIMD_TARGETS)
+
+$(BUILD_DIR)/%_scalar: bench/%.cpp src/scalar/%.cpp include/simd_examples/%.hpp $(BENCH_DEPS)
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) bench/$*.cpp src/scalar/$*.cpp src/simd/$*.cpp $(LDLIBS) -o $@
+	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SCALAR bench/$*.cpp src/scalar/$*.cpp $(LDLIBS) -o $@
+
+$(BUILD_DIR)/%_simd: bench/%.cpp src/simd/%.cpp include/simd_examples/%.hpp $(BENCH_DEPS) src/simd_common.h
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SIMD bench/$*.cpp src/simd/$*.cpp $(LDLIBS) -o $@
 
 run: run-bench
 
 run-bench: bench
-	@for ex in $(EXERCISES); do echo "\n=== bench/$$ex ==="; ./$(BUILD_DIR)/$${ex}_bench; done
+	@for ex in $(EXERCISES); do \
+		echo "\n=== bench/$$ex (scalar) ==="; ./$(BUILD_DIR)/$${ex}_scalar; \
+		echo "\n=== bench/$$ex (simd) ==="; ./$(BUILD_DIR)/$${ex}_simd; \
+	done
+
+assembly: $(NATIVE_ASSEMBLY_TARGETS)
+
+$(BUILD_DIR)/%_scalar.s: src/scalar/%.cpp include/simd_examples/%.hpp Makefile
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SCALAR -S $< -o $@
+
+$(BUILD_DIR)/%_simd.s: src/simd/%.cpp include/simd_examples/%.hpp src/simd_common.h Makefile
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SIMD -S $< -o $@
 
 riscv: $(RISCV_TARGETS)
 
-$(BUILD_DIR)/%_bench.riscv: bench/%.cpp src/scalar/%.cpp src/simd/%.cpp include/simd_examples/%.hpp bench/benchmark_common.hpp src/simd_common.h Makefile
+$(BUILD_DIR)/%_scalar.riscv: bench/%.cpp src/scalar/%.cpp include/simd_examples/%.hpp $(BENCH_DEPS)
 	@mkdir -p $(BUILD_DIR)
-	$(RISCV_CXX) $(RISCV_CXXFLAGS) bench/$*.cpp src/scalar/$*.cpp src/simd/$*.cpp $(RISCV_LDLIBS) -o $@
+	$(RISCV_CXX) $(RISCV_CXXFLAGS) -DSIMD_EXAMPLES_SCALAR bench/$*.cpp src/scalar/$*.cpp $(RISCV_LDLIBS) -o $@
+
+$(BUILD_DIR)/%_simd.riscv: bench/%.cpp src/simd/%.cpp include/simd_examples/%.hpp $(BENCH_DEPS) src/simd_common.h
+	@mkdir -p $(BUILD_DIR)
+	$(RISCV_CXX) $(RISCV_CXXFLAGS) -DSIMD_EXAMPLES_SIMD bench/$*.cpp src/simd/$*.cpp $(RISCV_LDLIBS) -o $@
 
 run-riscv-128: $(RISCV_TARGETS)
 	@echo "=== Running RISC-V VLEN=128 ==="
 	@for ex in $(EXERCISES); do \
-		echo "\n=== $$ex (VLEN=128) ==="; \
-		$(QEMU_RISCV) -cpu rv64,v=true,vlen=128 ./$(BUILD_DIR)/$${ex}_bench.riscv; \
+		echo "\n=== $$ex scalar (VLEN=128) ==="; \
+		$(QEMU_RISCV) -cpu rv64,v=true,vlen=128 ./$(BUILD_DIR)/$${ex}_scalar.riscv; \
+		echo "\n=== $$ex simd (VLEN=128) ==="; \
+		$(QEMU_RISCV) -cpu rv64,v=true,vlen=128 ./$(BUILD_DIR)/$${ex}_simd.riscv; \
 	done
 
 run-riscv-512: $(RISCV_TARGETS)
 	@echo "=== Running RISC-V VLEN=512 ==="
 	@for ex in $(EXERCISES); do \
-		echo "\n=== $$ex (VLEN=512) ==="; \
-		$(QEMU_RISCV) -cpu rv64,v=true,vlen=512 ./$(BUILD_DIR)/$${ex}_bench.riscv; \
+		echo "\n=== $$ex scalar (VLEN=512) ==="; \
+		$(QEMU_RISCV) -cpu rv64,v=true,vlen=512 ./$(BUILD_DIR)/$${ex}_scalar.riscv; \
+		echo "\n=== $$ex simd (VLEN=512) ==="; \
+		$(QEMU_RISCV) -cpu rv64,v=true,vlen=512 ./$(BUILD_DIR)/$${ex}_simd.riscv; \
 	done
 
 run-riscv-both: $(RISCV_TARGETS)
@@ -68,15 +106,16 @@ run-riscv-both: $(RISCV_TARGETS)
 	@echo "\n========================================\n"
 	@$(MAKE) run-riscv-512
 
-verify-riscv: $(BUILD_DIR)/01_add_simd.s
+verify-riscv: $(BUILD_DIR)/01_add_simd.riscv.s
 	@echo "=== Checking for RISC-V Vector (RVV) instructions ==="
 	@grep -E 'vle32\.v|vse32\.v|vfadd\.vv|vfmacc\.vv' $< || echo "No RVV instructions found - check compiler flags"
 
-$(BUILD_DIR)/01_add_simd.s: src/simd/01_add.cpp include/simd_examples/01_add.hpp src/simd_common.h Makefile
+$(BUILD_DIR)/01_add_simd.riscv.s: src/simd/01_add.cpp include/simd_examples/01_add.hpp src/simd_common.h Makefile
 	@mkdir -p $(BUILD_DIR)
-	$(RISCV_CXX) $(RISCV_CXXFLAGS) -S $< -o $@
+	$(RISCV_CXX) $(RISCV_CXXFLAGS) -DSIMD_EXAMPLES_SIMD -S $< -o $@
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all bench run run-bench riscv run-riscv-128 run-riscv-512 run-riscv-both verify-riscv clean
+.PHONY: all bench scalar simd run run-bench assembly riscv run-riscv-128 run-riscv-512 \
+    run-riscv-both verify-riscv clean

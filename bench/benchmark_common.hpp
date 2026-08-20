@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <ostream>
 #include <random>
 #include <string>
 #include <string_view>
@@ -61,6 +62,29 @@ double best_time_ms(Setup&& setup, F&& function, int repetitions) {
         best = std::min(best, elapsed);
     }
     return best;
+}
+
+inline bool within_tolerance(float actual, float expected,
+                             float relative = 1e-3f,
+                             float absolute = 1e-5f) {
+    return std::abs(actual - expected) <=
+        absolute + relative * std::max(std::abs(actual), std::abs(expected));
+}
+
+template<class Writer>
+bool write_output(std::string_view path, Writer&& writer) {
+    if (path.empty()) {
+        writer(std::cout);
+        return true;
+    }
+
+    std::ofstream output{std::string(path)};
+    if (!output) {
+        std::cerr << "Cannot write " << path << "\n";
+        return false;
+    }
+    writer(output);
+    return true;
 }
 
 template<class Iter>
