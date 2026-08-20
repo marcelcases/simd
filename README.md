@@ -143,7 +143,7 @@ Source layout:
 include/             # Interfaces shared by implementations and drivers
 src/scalar/          # Pure scalar algorithms; auto-vectorization disabled
 src/simd/            # Pure explicit std::simd algorithms
-bench/               # C++ correctness/timing drivers with main(), CSV output
+drivers/             # C++ correctness/timing drivers with main(), CSV output
 scripts/             # Shell orchestration of benchmark runs
 ```
 
@@ -170,11 +170,11 @@ make
 # For Intel compiler (recommended for better performance):
 module load intel/2025.2
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
-  -DSIMD_EXAMPLES_SCALAR bench/01_add.cpp src/scalar/01_add.cpp \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
+  -DSIMD_EXAMPLES_SCALAR drivers/01_add.cpp src/scalar/01_add.cpp \
   -o build/01_add_scalar_intel
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
-  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
+  -DSIMD_EXAMPLES_SIMD drivers/01_add.cpp src/simd/01_add.cpp \
   -o build/01_add_simd_intel
 ```
 
@@ -1171,11 +1171,11 @@ module load gcc/14.1.0_binutils241
 
 # Compile with Intel
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
-  -DSIMD_EXAMPLES_SCALAR bench/01_add.cpp src/scalar/01_add.cpp \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
+  -DSIMD_EXAMPLES_SCALAR drivers/01_add.cpp src/scalar/01_add.cpp \
   -o build/01_add_scalar_intel
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
-  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
+  -DSIMD_EXAMPLES_SIMD drivers/01_add.cpp src/simd/01_add.cpp \
   -o build/01_add_simd_intel
 ```
 

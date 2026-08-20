@@ -49,8 +49,8 @@ content = re.sub(r'\| RISC-V \(macOS compile-only\).*?\n', '', content)
 # 3. Update the bash block for RISC-V RVV (GCC 15.1)
 old_bash = """**RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -O3 -Ibench -Iinclude -Isrc \\
-  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \\
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -O3 -Idrivers -Iinclude -Isrc \\
+  -DSIMD_EXAMPLES_SIMD drivers/01_add.cpp src/simd/01_add.cpp \\
   -o /tmp/01_add_simd.riscv
 
 riscv64-linux-objdump -d /tmp/01_add_simd.riscv | \\
@@ -59,8 +59,8 @@ riscv64-linux-objdump -d /tmp/01_add_simd.riscv | \\
 
 new_bash = """**RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Ibench -Iinclude -Isrc \\
-  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \\
+riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Idrivers -Iinclude -Isrc \\
+  -DSIMD_EXAMPLES_SIMD drivers/01_add.cpp src/simd/01_add.cpp \\
   -o /tmp/01_add_simd.riscv
 
 riscv64-linux-objdump -d /tmp/01_add_simd.riscv | \\
