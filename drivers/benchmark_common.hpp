@@ -88,9 +88,9 @@ bool write_output(std::string_view path, Writer&& writer) {
 }
 
 template<class Iter>
-float checksum(Iter first, Iter last) {
-    float sum = 0.f;
-    for (; first != last; ++first) sum += *first;
+double checksum(Iter first, Iter last) {
+    double sum = 0.0;
+    for (; first != last; ++first) sum += static_cast<double>(*first);
     return sum;
 }
 

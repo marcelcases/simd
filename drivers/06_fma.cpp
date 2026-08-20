@@ -9,7 +9,7 @@ using simd_examples::benchmark::OneDimOptions;
 using simd_examples::benchmark::ParseResult;
 
 void write_row(std::ostream& output, const OneDimOptions& options,
-               const char* kernel, double time, float result, float difference) {
+               const char* kernel, double time, double result, float difference) {
     output << "06_fma," << kernel << ","
            << simd_examples::benchmark::implementation_name << ","
            << options.size << "," << options.repetitions << ","
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
             simd_examples::benchmark::implementation::fma_memory_bound(
                 a.data(), b.data(), c.data(), output.data(), options.size);
         }, options.repetitions);
-    const float memory_result = simd_examples::benchmark::checksum(
+    const double memory_result = simd_examples::benchmark::checksum(
         output.begin(), output.end());
     const float memory_difference = simd_examples::benchmark::max_abs_difference(
         output.data(), expected_output.data(), options.size);

@@ -9,7 +9,7 @@ using simd_examples::benchmark::OneDimOptions;
 using simd_examples::benchmark::ParseResult;
 
 void write_csv(std::ostream& output, const OneDimOptions& options,
-               double time, float result, float difference) {
+               double time, double result, float difference) {
     output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
     output << "08_conv1d,convolution,"
            << simd_examples::benchmark::implementation_name << ","
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
             simd_examples::benchmark::implementation::convolve_1d(
                 input.data(), kernel, output.data(), options.size, kernel_size);
         }, options.repetitions);
-    const float result = simd_examples::benchmark::checksum(
+    const double result = simd_examples::benchmark::checksum(
         output.begin(), output.begin() + output_size);
     const float difference = simd_examples::benchmark::max_abs_difference(
         output.data(), expected.data(), output_size);

@@ -9,7 +9,7 @@ using simd_examples::benchmark::OneDimOptions;
 using simd_examples::benchmark::ParseResult;
 
 void write_csv(std::ostream& output, const OneDimOptions& options,
-               double time, float result, float difference) {
+               double time, double result, float difference) {
     output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
     output << "01_add,add," << simd_examples::benchmark::implementation_name << ","
            << options.size << "," << options.repetitions << ","
@@ -40,13 +40,13 @@ int main(int argc, char** argv) {
 
     const double time = simd_examples::benchmark::best_time_ms(
         [&] { destination = source; },
-        [&]() -> float {
+        [&]() -> double {
             simd_examples::benchmark::implementation::add(
                 destination.data(), source.data(), options.size);
             return simd_examples::benchmark::checksum(
                 destination.begin(), destination.end());
         }, options.repetitions);
-    const float result = simd_examples::benchmark::checksum(
+    const double result = simd_examples::benchmark::checksum(
         destination.begin(), destination.end());
     const float difference = simd_examples::benchmark::max_abs_difference(
         destination.data(), expected.data(), options.size);
