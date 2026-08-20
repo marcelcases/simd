@@ -30,7 +30,7 @@ export QEMU_RISCV=$PWD/qemu-riscv64-static
 
 # 3. Build and verify RVV instruction generation
 make riscv RISCV_CXX=riscv64-linux-g++ RISCV_CXXFLAGS="-std=c++2b -O3 -march=rv64gcv -mrvv-vector-bits=zvl -static"
-make verify-riscv RISCV_CXX=riscv64-linux-g++
+make verify-riscv RISCV_CXX=riscv64-linux-g++ RISCV_OBJDUMP=riscv64-linux-objdump
 
 # 4. Run through the QEMU emulator (e.g., with VLEN=128)
 make run-riscv-128 QEMU_RISCV=$QEMU_RISCV

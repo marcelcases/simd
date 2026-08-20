@@ -126,7 +126,7 @@ make run
 # Inspect or run one implementation directly.
 ./build/01_add_scalar --size 1000000 --repetitions 10
 ./build/01_add_simd --size 1000000 --repetitions 10
-make build/01_add_scalar.s build/01_add_simd.s
+objdump -d -C build/01_add_simd | grep -E 'vaddps|vmulps'
 
 # One-dimensional exercises: --size, --repetitions, --output
 scripts/benchmark.sh 05_softmax --size 1000000 --repetitions 10 \
@@ -153,7 +153,7 @@ reference checks, and precise timing; the script runs both and combines their CS
 The CSV `max_abs_difference` column reports the difference from that reference.
 Algorithm sources contain no `main()`, I/O, random input generation, timing, or reporting.
 
-All generated binaries and assembly are placed in the ignored `build/` directory.
+All generated binaries are placed in the ignored `build/` directory.
 Benchmark CSV output is stored in ignored `results/`.
 
 ### Platform-Specific Setup
@@ -214,7 +214,7 @@ export QEMU_RISCV=$PWD/qemu-riscv64-static
 
 # 3. Build and verify RVV instruction generation
 make riscv RISCV_CXX=riscv64-linux-g++ RISCV_CXXFLAGS="-std=c++2b -O3 -march=rv64gcv -mrvv-vector-bits=zvl -static"
-make verify-riscv RISCV_CXX=riscv64-linux-g++
+make verify-riscv RISCV_CXX=riscv64-linux-g++ RISCV_OBJDUMP=riscv64-linux-objdump
 
 # 4. Run through the QEMU emulator (e.g., with VLEN=128)
 make run-riscv-128 QEMU_RISCV=$QEMU_RISCV
@@ -239,7 +239,7 @@ Observed on MareNostrum 5 with Bootlin `riscv64-linux-g++` 15.1.0, `qemu-riscv64
 
 Important caveats from these runs:
 - These are emulator timings, not native RISC-V hardware timings.
-- GCC 15.1.0 did emit RVV instructions such as `vsetvli`, `vle32.v`, `vse32.v`, and `vfadd.vv` in the generated assembly.
+- GCC 15.1.0 did emit RVV instructions such as `vsetvli`, `vle32.v`, `vse32.v`, and `vfadd.vv` in the final binary.
 - In the benchmark output, `native_simd<float>::size()` reported `1` under this setup, even though RVV instructions were present in the binary. That makes these runs useful for code-generation verification and end-to-end execution checks, but not for drawing strong performance conclusions about real RISC-V hardware.
 
 ### Compiler Flags
@@ -329,27 +329,30 @@ Results vary significantly by compiler. The table below shows GCC 13.2.0 results
 
 Understanding what instructions your CPU actually executes is crucial for performance debugging. The same `std::simd` code compiles to completely different assembly on different architectures.
 
-#### How to Generate and Inspect Assembly
+#### How to Inspect Binary Instructions
+
+Disassemble the final executable rather than an intermediate compiler output.
+This verifies the instructions that are actually present after assembly and linking.
 
 **ARM NEON (macOS/Apple Silicon):**
 ```bash
-make build/01_add_scalar.s build/01_add_simd.s
-grep -E 'fadd\s+v[0-9]+\.4s' build/01_add_simd.s   # Look for NEON vector ops
+make build/01_add_simd
+objdump -d -C build/01_add_simd | grep -E 'fadd\s+v[0-9]+\.4s'
 ```
 
 **x86 AVX-512 (Linux/Intel):**
 ```bash
-make build/01_add_scalar.s build/01_add_simd.s
-grep -E 'vaddps|vmulps' build/01_add_simd.s        # Look for AVX vector ops
+make build/01_add_simd
+objdump -d -C build/01_add_simd | grep -E 'vaddps|vmulps'
 ```
 
 **RISC-V RVV (GCC 15.1):**
 ```bash
-riscv64-linux-g++ -std=c++2b -march=rv64gcv -mrvv-vector-bits=zvl -O3 -Ibench -Iinclude -Isrc \
-  -DSIMD_EXAMPLES_SIMD bench/01_add.cpp src/simd/01_add.cpp \
-  -o /tmp/01_add_simd.riscv
+make build/01_add_simd.riscv \
+  RISCV_CXX=riscv64-linux-g++ \
+  RISCV_OBJDUMP=riscv64-linux-objdump
 
-riscv64-linux-objdump -d /tmp/01_add_simd.riscv | \
+riscv64-linux-objdump -d build/01_add_simd.riscv | \
   grep -E 'vsetvli|vle32\.v|vse32\.v|vfadd\.vv|vfmul\.vv|vfmacc\.vv|vfred'
 ```
 
@@ -580,24 +583,23 @@ This is why AVX-512 can achieve higher theoretical speedups than NEON—it proce
 
 **1. Verify vectorization is happening:**
 ```bash
-# Look for vector instructions in assembly
-grep -E 'fadd.*\.4s|vaddps|vfadd\.vv' example.s
+# Inspect the final SIMD executable.
+objdump -d -C build/01_add_simd | grep -E 'fadd.*\.4s|vaddps|vfadd\.vv'
 ```
 
 **2. Check register usage:**
 ```bash
-# ARM: Should see v0-v31, NOT s0-s31 (scalar)
-grep -E '\sv[0-9]+\.' example.s
+# ARM: Should see v0-v31, NOT s0-s31 (scalar).
+objdump -d -C build/01_add_simd | grep -E '\sv[0-9]+\.'
 
-# x86: Should see zmm/ymm, NOT xmm (smaller) or scalar
-grep -E 'zmm|ymm' example.s
+# x86: Should see zmm/ymm, NOT only scalar instructions.
+objdump -d -C build/01_add_simd | grep -E 'zmm|ymm'
 ```
 
 **3. Count vector operations:**
 ```bash
-# How many vector adds?
-grep -c 'vaddps' example.s        # x86
-grep -c 'fadd.*\.4s' example.s    # ARM
+objdump -d -C build/01_add_simd | grep -c 'vaddps'       # x86
+objdump -d -C build/01_add_simd | grep -c 'fadd.*\.4s' # ARM
 ```
 
 **4. Look for loop unrolling:**
@@ -1182,7 +1184,7 @@ icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Ibench -Iinclude -Isrc \
 1. **For best performance**: Use Intel compiler when available
 2. **For portability**: Write code that works with both (use the `#if` pattern above)
 3. **Always benchmark**: Compiler behavior varies significantly
-4. **Check assembly**: Use `objdump -d` or `-S` flag to verify vectorization
+4. **Check the binary**: Use `objdump -d` to verify vectorization
 
 ---
 

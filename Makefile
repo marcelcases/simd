@@ -8,9 +8,6 @@ BENCH_TARGETS := $(SCALAR_TARGETS) $(SIMD_TARGETS)
 RISCV_SCALAR_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _scalar.riscv,$(EXERCISES)))
 RISCV_SIMD_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _simd.riscv,$(EXERCISES)))
 RISCV_TARGETS := $(RISCV_SCALAR_TARGETS) $(RISCV_SIMD_TARGETS)
-NATIVE_ASSEMBLY_TARGETS := \
-    $(addprefix $(BUILD_DIR)/,$(addsuffix _scalar.s,$(EXERCISES))) \
-    $(addprefix $(BUILD_DIR)/,$(addsuffix _simd.s,$(EXERCISES)))
 BENCH_DEPS := bench/benchmark_common.hpp bench/benchmark_implementation.hpp \
     bench/benchmark_reference.hpp Makefile
 
@@ -33,6 +30,7 @@ endif
 
 # RISC-V cross-compilation settings.
 RISCV_CXX = riscv64-linux-gnu-g++
+RISCV_OBJDUMP = riscv64-linux-gnu-objdump
 RISCV_CXXFLAGS = -std=c++2b -O3 -march=rv64gcv -static -fno-math-errno -fno-trapping-math -Wall -Wextra -Ibench -Iinclude -Isrc
 RISCV_LDLIBS = -lm
 QEMU_RISCV = qemu-riscv64-static
@@ -62,16 +60,6 @@ run-bench: bench
 		echo "\n=== bench/$$ex (scalar) ==="; ./$(BUILD_DIR)/$${ex}_scalar; \
 		echo "\n=== bench/$$ex (simd) ==="; ./$(BUILD_DIR)/$${ex}_simd; \
 	done
-
-assembly: $(NATIVE_ASSEMBLY_TARGETS)
-
-$(BUILD_DIR)/%_scalar.s: src/scalar/%.cpp include/simd_examples/%.hpp Makefile
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SCALAR -S $< -o $@
-
-$(BUILD_DIR)/%_simd.s: src/simd/%.cpp include/simd_examples/%.hpp src/simd_common.h Makefile
-	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SIMD -S $< -o $@
 
 riscv: $(RISCV_TARGETS)
 
@@ -106,16 +94,13 @@ run-riscv-both: $(RISCV_TARGETS)
 	@echo "\n========================================\n"
 	@$(MAKE) run-riscv-512
 
-verify-riscv: $(BUILD_DIR)/01_add_simd.riscv.s
-	@echo "=== Checking for RISC-V Vector (RVV) instructions ==="
-	@grep -E 'vle32\.v|vse32\.v|vfadd\.vv|vfmacc\.vv' $< || echo "No RVV instructions found - check compiler flags"
-
-$(BUILD_DIR)/01_add_simd.riscv.s: src/simd/01_add.cpp include/simd_examples/01_add.hpp src/simd_common.h Makefile
-	@mkdir -p $(BUILD_DIR)
-	$(RISCV_CXX) $(RISCV_CXXFLAGS) -DSIMD_EXAMPLES_SIMD -S $< -o $@
+verify-riscv: $(BUILD_DIR)/01_add_simd.riscv
+	@echo "=== Checking the RISC-V binary for Vector (RVV) instructions ==="
+	@$(RISCV_OBJDUMP) -d $< | grep -E 'vle32\.v|vse32\.v|vfadd\.vv|vfmacc\.vv' || \
+		echo "No RVV instructions found - check compiler flags"
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all bench scalar simd run run-bench assembly riscv run-riscv-128 run-riscv-512 \
+.PHONY: all bench scalar simd run run-bench riscv run-riscv-128 run-riscv-512 \
     run-riscv-both verify-riscv clean
