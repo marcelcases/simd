@@ -1,11 +1,8 @@
-"""Numerically stable scalar softmax reference."""
-
 import math
 from typing import Sequence
 
 
 def softmax(values: Sequence[float]) -> list[float]:
-    """Return softmax(values), subtracting the maximum for stability."""
     if not values:
         return []
 

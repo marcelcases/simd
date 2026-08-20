@@ -17,8 +17,11 @@ Vector exp_poly(Vector values) noexcept {
 float find_max(const float* values, std::size_t size) noexcept {
     using vector_type = simd_examples::native_simd<float>;
     constexpr std::size_t width = vector_type::size();
+    if (size == 0) {
+        return std::numeric_limits<float>::lowest();
+    }
 
-    vector_type maximum = std::numeric_limits<float>::lowest();
+    vector_type maximum(values[0]);
     std::size_t i = 0;
     for (; i + width <= size; i += width) {
         vector_type vector;
@@ -31,7 +34,7 @@ float find_max(const float* values, std::size_t size) noexcept {
     return result;
 }
 
-} // namespace
+}
 
 namespace simd_examples::simd {
 
@@ -67,4 +70,4 @@ void softmax(float* values, std::size_t size) noexcept {
     for (; i < size; ++i) values[i] /= sum;
 }
 
-} // namespace simd_examples::simd
+}

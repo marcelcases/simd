@@ -24,4 +24,4 @@ std::size_t count_above(const float* values, std::size_t size, float threshold) 
     return count;
 }
 
-} // namespace simd_examples::simd
+}

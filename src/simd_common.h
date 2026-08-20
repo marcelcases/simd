@@ -13,4 +13,4 @@ using native_simd = stdx::native_simd<T>;
 template<class T>
 using native_mask = stdx::simd_mask<T, stdx::simd_abi::native<T>>;
 
-} // namespace simd_examples
+}

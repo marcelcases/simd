@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC push_options
@@ -38,8 +37,12 @@ inline std::size_t count_above(const float* values, std::size_t size,
 }
 
 inline void softmax(float* values, std::size_t size) noexcept {
-    float maximum = std::numeric_limits<float>::lowest();
-    for (std::size_t i = 0; i < size; ++i) maximum = std::max(maximum, values[i]);
+    if (size == 0) {
+        return;
+    }
+
+    float maximum = values[0];
+    for (std::size_t i = 1; i < size; ++i) maximum = std::max(maximum, values[i]);
 
     float total = 0.f;
     for (std::size_t i = 0; i < size; ++i) {
@@ -61,10 +64,19 @@ inline float dot_product(const float* a, const float* b, std::size_t size) noexc
 }
 
 inline void blur_horizontal(const float* input, float* output,
-                     int width, int height) noexcept {
+                             int width, int height) noexcept {
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+
     for (int row = 0; row < height; ++row) {
         const float* source = input + row * width;
         float* destination = output + row * width;
+        if (width == 1) {
+            destination[0] = source[0];
+            continue;
+        }
+
         destination[0] = (source[0] + source[1]) * 0.5f;
         for (int column = 1; column < width - 1; ++column) {
             destination[column] =
@@ -76,12 +88,17 @@ inline void blur_horizontal(const float* input, float* output,
 }
 
 inline void convolve_1d(const float* input, const float* kernel, float* output,
-                 std::size_t size, int kernel_size) noexcept {
-    const std::size_t output_size = size - kernel_size + 1;
+                          std::size_t size, std::size_t kernel_size) noexcept {
+    if (kernel_size == 0 || size < kernel_size) {
+        return;
+    }
+
+    const std::size_t output_size =
+        size - kernel_size + 1;
     for (std::size_t i = 0; i < output_size; ++i) {
         float result = 0.f;
-        for (int j = 0; j < kernel_size; ++j) {
-            result += input[i + j] * kernel[j];
+        for (std::size_t j = 0; j < kernel_size; ++j) {
+            result += input[i + j] * kernel[kernel_size - 1 - j];
         }
         output[i] = result;
     }

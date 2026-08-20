@@ -20,4 +20,4 @@ float sum(const float* values, std::size_t size) noexcept {
     return result;
 }
 
-} // namespace simd_examples::simd
+}

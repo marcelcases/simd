@@ -41,4 +41,4 @@ float dot_product(const float* a, const float* b, std::size_t size) noexcept {
     return result;
 }
 
-} // namespace simd_examples::simd
+}

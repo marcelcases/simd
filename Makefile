@@ -28,6 +28,13 @@ else
     CXXFLAGS = -std=c++2b -O3 -march=native -mavx512f -mavx512vl -mavx512dq -mavx512bw -fno-math-errno -fno-trapping-math -Wall -Wextra -Idrivers -Iinclude -Isrc
 endif
 
+ifneq ($(filter icpx clang clang++,$(notdir $(CXX))),)
+SCALAR_CXXFLAGS := -fno-vectorize -fno-slp-vectorize
+else
+SCALAR_CXXFLAGS := -fno-tree-vectorize -fno-tree-loop-distribute-patterns
+endif
+RISCV_SCALAR_CXXFLAGS := -fno-tree-vectorize -fno-tree-loop-distribute-patterns
+
 # RISC-V cross-compilation settings.
 RISCV_CXX = riscv64-linux-gnu-g++
 RISCV_OBJDUMP = riscv64-linux-gnu-objdump
@@ -47,7 +54,7 @@ simd: $(SIMD_TARGETS)
 
 $(BUILD_DIR)/%_scalar: drivers/%.cpp src/scalar/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS)
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SCALAR drivers/$*.cpp src/scalar/$*.cpp $(LDLIBS) -o $@
+	$(CXX) $(CXXFLAGS) $(SCALAR_CXXFLAGS) -DSIMD_EXAMPLES_SCALAR drivers/$*.cpp src/scalar/$*.cpp $(LDLIBS) -o $@
 
 $(BUILD_DIR)/%_simd: drivers/%.cpp src/simd/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS) src/simd_common.h
 	@mkdir -p $(BUILD_DIR)
@@ -65,7 +72,7 @@ riscv: $(RISCV_TARGETS)
 
 $(BUILD_DIR)/%_scalar.riscv: drivers/%.cpp src/scalar/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS)
 	@mkdir -p $(BUILD_DIR)
-	$(RISCV_CXX) $(RISCV_CXXFLAGS) -DSIMD_EXAMPLES_SCALAR drivers/$*.cpp src/scalar/$*.cpp $(RISCV_LDLIBS) -o $@
+	$(RISCV_CXX) $(RISCV_CXXFLAGS) $(RISCV_SCALAR_CXXFLAGS) -DSIMD_EXAMPLES_SCALAR drivers/$*.cpp src/scalar/$*.cpp $(RISCV_LDLIBS) -o $@
 
 $(BUILD_DIR)/%_simd.riscv: drivers/%.cpp src/simd/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS) src/simd_common.h
 	@mkdir -p $(BUILD_DIR)

@@ -31,9 +31,9 @@ int main(int argc, char** argv) {
         return parsed == ParseResult::help ? 0 : 1;
     }
 
-    constexpr int kernel_size = 3;
-    const float kernel[kernel_size] = {0.25f, 0.5f, 0.25f};
-    if (options.size < static_cast<std::size_t>(kernel_size)) return 1;
+    constexpr std::size_t kernel_size = 3;
+    const float kernel[kernel_size] = {0.25f, 0.5f, 0.125f};
+    if (options.size < kernel_size) return 1;
 
     const std::size_t output_size = options.size - kernel_size + 1;
     std::vector<float> input(options.size), output(options.size), expected(options.size);

@@ -22,4 +22,4 @@ void add(float* destination, const float* source, std::size_t size) noexcept {
     }
 }
 
-} // namespace simd_examples::simd
+}

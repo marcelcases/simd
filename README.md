@@ -170,7 +170,7 @@ make
 # For Intel compiler (recommended for better performance):
 module load intel/2025.2
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -fno-vectorize -fno-slp-vectorize -Idrivers -Iinclude -Isrc \
   -DSIMD_EXAMPLES_SCALAR drivers/01_add.cpp src/scalar/01_add.cpp \
   -o build/01_add_scalar_intel
 icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
@@ -282,7 +282,7 @@ By storing the result in a global volatile variable, we force the compiler to ac
 1. The global might be read later (observable behavior)
 2. The compiler can't prove it doesn't matter
 
-This is why all our scalar functions include a pragma to disable auto-vectorization AND we use a global sink in the benchmark. Both are necessary for accurate comparisons.
+The scalar targets receive `-fno-tree-vectorize` and `-fno-tree-loop-distribute-patterns` from the Makefile, while the benchmark keeps results observable with its global sink.
 
 ### List of Problems
 
@@ -298,7 +298,7 @@ This is why all our scalar functions include a pragma to disable auto-vectorizat
 5. **Problem 5: Stable Softmax** ([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) - Computes numerically stable softmax with SIMD passes for max, exp, and normalization.
 6. **Problem 6: FMA Memory vs Compute Bound** ([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)) - Compares SIMD gains for a memory-bound FMA kernel and a compute-bound dot product.
 7. **Problem 7: Horizontal Image Blur** ([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp)) - Applies a sliding-window blur and shows limits from overlapping memory loads.
-8. **Problem 8: 1D Convolution Tradeoff** ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) - Shows a small-kernel convolution where explicit SIMD may lose to auto-vectorized scalar code.
+8. **Problem 8: 1D Convolution Tradeoff** ([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) - Shows a small-kernel convolution where explicit SIMD may lose to a simple scalar loop.
 
 ### Measured Results
 
@@ -639,9 +639,9 @@ For complete annotated assembly examples showing exactly what each instruction d
 
 **Sources**: [scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp)
 
-Every SIMD operation follows the same three-step pattern: load data from memory into a SIMD register, perform the computation on all elements simultaneously, then store the results back to memory. This example shows this pattern applied to array addition. The key insight here is understanding how the loop processes `W` elements (the SIMD width) per iteration—on AVX-512 that's 16 floats, on AVX2 it's 8, and on ARM NEON it's 4. The scalar version uses a pragma to disable auto-vectorization so you can see the true cost of element-by-element processing versus the SIMD version.
+Every SIMD operation follows the same three-step pattern: load data from memory into a SIMD register, perform the computation on all elements simultaneously, then store the results back to memory. This example shows this pattern applied to array addition. The key insight here is understanding how the loop processes `W` elements (the SIMD width) per iteration—on AVX-512 that's 16 floats, on AVX2 it's 8, and on ARM NEON it's 4. The scalar executable is built with auto-vectorization disabled so you can see the cost of element-by-element processing versus the SIMD version.
 
-Note that this particular operation shows modest speedup (~1.2x) because it's memory-bandwidth limited—the CPU can compute faster than it can fetch data from memory. Additionally, modern compilers often auto-vectorize such simple operations anyway, which is why explicit SIMD is most valuable for more complex patterns.
+Note that this particular operation shows modest speedup (~1.2x) because it's memory-bandwidth limited—the CPU can compute faster than it can fetch data from memory. A normal optimized build may auto-vectorize such a simple loop, but this project disables that optimization for the scalar baseline.
 
 ### Key Concepts
 
@@ -654,16 +654,11 @@ Note that this particular operation shows modest speedup (~1.2x) because it's me
 First, the scalar version:
 
 ```cpp
-// Scalar (non-vectorized) - one element at a time
-// The pragma prevents the compiler from auto-vectorizing this function
-#pragma GCC push_options
-#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
-void add_scalar(float* __restrict dst, const float* __restrict src, size_t n) {
+void add_scalar(float* dst, const float* src, size_t n) {
     for (size_t i = 0; i < n; ++i) {
         dst[i] += src[i];
     }
 }
-#pragma GCC pop_options
 ```
 
 Now the SIMD version:
@@ -689,7 +684,7 @@ void add_simd(float* dst, const float* src, size_t n) {
 }
 ```
 
-**Note**: Speedup is modest because this is memory-bandwidth limited, not compute-limited. The compiler also auto-vectorizes this simple case.
+**Note**: Speedup is modest because this is memory-bandwidth limited, not compute-limited. A normal optimized build may auto-vectorize this simple case, but this scalar baseline does not.
 
 ### When to Use Explicit SIMD
 
@@ -1084,13 +1079,13 @@ Memory bandwidth becomes the bottleneck, not compute. For better performance, co
 
 **Sources**: [scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)
 
-This example uses a 1D convolution with a small kernel to show that explicit SIMD can be slower than scalar code that the compiler auto-vectorizes well.
+This example uses a valid 1D convolution with a small kernel to show that explicit SIMD can be slower than a simple scalar loop. The kernel is applied in reverse order, as in the mathematical definition of convolution.
 
 ### Key Concepts
 
 1. Small kernels can have too little work per output for explicit SIMD setup costs.
 2. Overlapping memory accesses can make the kernel memory-bound.
-3. Auto-vectorized scalar code can outperform manual SIMD in simple cases.
+3. A compiler may auto-vectorize a scalar implementation in production, while this project keeps the scalar baseline explicitly non-vectorized.
 
 **Key Lesson**: benchmark before and after SIMD changes; do not assume explicit SIMD is always faster.
 
@@ -1142,25 +1137,12 @@ vfmadd231ps zmm0, zmm1, zmm2              # VECTOR fma (processes 16 floats)
 #endif
 ```
 
-### Disabling Auto-Vectorization
+### Scalar Build Flags
 
-To get fair scalar baselines, we need to disable auto-vectorization. **This requires different pragmas per compiler:**
-
-```cpp
-// Cross-compiler pragma pattern
-#if defined(__INTEL_LLVM_COMPILER) || defined(__clang__)
-__attribute__((noinline, optnone))
-void my_scalar_function(...) { ... }
-#else
-#pragma GCC push_options
-#pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
-void my_scalar_function(...) { ... }
-#pragma GCC pop_options
-#endif
-```
-
-- **GCC**: `#pragma GCC optimize("no-tree-vectorize")` works
-- **Intel/Clang**: Requires `__attribute__((optnone))` to truly disable vectorization
+The scalar source files contain only straightforward algorithms. The Makefile applies
+`-fno-tree-vectorize -fno-tree-loop-distribute-patterns` with GCC and
+`-fno-vectorize -fno-slp-vectorize` with Clang-based compilers when building scalar
+targets, so compiler-specific controls do not obscure the examples.
 
 ### Using the Intel Compiler on MareNostrum 5
 
@@ -1171,7 +1153,7 @@ module load gcc/14.1.0_binutils241
 
 # Compile with Intel
 mkdir -p build
-icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \
+icpx -std=c++2b -O3 -march=native -fiopenmp-simd -fno-vectorize -fno-slp-vectorize -Idrivers -Iinclude -Isrc \
   -DSIMD_EXAMPLES_SCALAR drivers/01_add.cpp src/scalar/01_add.cpp \
   -o build/01_add_scalar_intel
 icpx -std=c++2b -O3 -march=native -fiopenmp-simd -Idrivers -Iinclude -Isrc \

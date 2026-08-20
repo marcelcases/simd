@@ -23,4 +23,4 @@ void clamp(float* values, std::size_t size, float upper_bound) noexcept {
     }
 }
 
-} // namespace simd_examples::simd
+}
