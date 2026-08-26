@@ -1,38 +1,21 @@
-# Learning SIMD on x86 with C++
+# SIMD Expression and Portability
 
-A small, runnable set of scalar and explicit SIMD algorithms for learning how
-SIMD works on x86-64 CPUs.
+> Modern C++ SIMD Programming
 
-The project uses the GCC and Intel compiler implementations of
-`std::experimental::simd`. Every exercise has a scalar implementation, an
-explicit SIMD implementation, an isolated executable, and a driver that
-generates input, measures time, and checks correctness.
+## Intro
 
-## TL;DR
+This project is a compact, benchmark-driven study of explicit SIMD in modern
+C++. It compares straightforward scalar algorithms with implementations using
+`std::experimental::simd` on x86-64 CPUs.
 
-```bash
-# GCC on MareNostrum 5
-module purge
-module load gcc/14.1.0_binutils241
-make clean && make
-make run
+### TL;DR
 
-# Intel compiler on MareNostrum 5
-module purge
-module load intel/2025.2
-make clean && make CXX=icpx
-make run CXX=icpx
-```
-
-## Scope
-
-- CPU: Intel Xeon Platinum 8480+ with AVX-512;
-- GCC: 14.1.0;
-- Intel compiler: `icpx` 2025.2;
-- build: C++2b, `-O3`, `-march=native`.
-
-`native_simd<float>::size()` is typically 16 on this CPU: one SIMD vector
-contains 16 single-precision values.
+- Eight progressively more demanding scalar/SIMD algorithms.
+- Explicit load–compute–store loops with safe scalar tails.
+- Reductions, masks, FMA, sliding windows, softmax, and convolution.
+- Independent correctness checks and isolated executables.
+- Measured SIMD gains from negligible to about 10×, depending on the bottleneck.
+- Final-binary inspection confirms the generated AVX-512 instructions.
 
 ## Project structure
 
@@ -50,91 +33,89 @@ results/                 Ignored benchmark CSV files
 Algorithms contain computation only. Drivers own input generation, timing,
 validation, and output.
 
-## Learning path
+### Exercises
 
-| # | Kernel | SIMD concept | Source |
-|---|---|---|---|
-| 1 | Element-wise addition | Load, operate, store, tail | [scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp) |
-| 2 | Sum reduction | SIMD accumulator and `reduce` | [scalar](src/scalar/02_sum.cpp) · [SIMD](src/simd/02_sum.cpp) |
-| 3 | Upper-bound clamp | Comparison masks and `where` | [scalar](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp) |
-| 4 | Count above threshold | Masks and `popcount` | [scalar](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp) |
-| 5 | Stable softmax | `hmax`, `reduce`, vector normalization | [scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp) |
-| 6 | FMA and dot product | Memory-bound versus compute-bound work | [scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp) |
-| 7 | Horizontal image blur | Sliding windows and scalar borders | [scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp) |
-| 8 | 1D convolution | Reversed kernel and vectorized outputs | [scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp) |
+| Exercise | Description |
+|---|---|
+| [01_add](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp) | Adds two arrays element by element and introduces the basic load–operate–store loop. |
+| [02_sum](src/scalar/02_sum.cpp) · [SIMD](src/simd/02_sum.cpp) | Sums an array with SIMD lane accumulators followed by a horizontal reduction. |
+| [03_clamp](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp) | Replaces values above an upper bound using comparison masks and conditional updates. |
+| [04_count](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp) | Counts values above a threshold with a SIMD mask and `popcount`. |
+| [05_softmax](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp) | Computes numerically stable softmax using maximum and sum reductions, then vector normalization. |
+| [06_fma](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp) | Compares a memory-bound FMA kernel with a compute-bound dot product. |
+| [07_filter](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp) | Applies a horizontal image blur with overlapping loads and scalar image borders. |
+| [08_conv1d](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp) | Computes valid mathematical convolution with a reversed kernel and vectorized output blocks. |
 
-## The SIMD loop
+## Key results and performance
 
-A typical implementation processes complete vector-sized blocks and then a
-small scalar tail:
+Results are from an Intel Xeon Platinum 8480+ on one exclusive MN5 node and one
+pinned CPU core. Scalar targets disable compiler vectorization; SIMD targets
+use explicit `std::experimental::simd` with normal optimization.
 
-```cpp
-using V = simd_examples::native_simd<float>;
-constexpr std::size_t width = V::size();
+The 1D kernels used 16,777,216 elements, softmax used 4,194,304 elements, and
+blur used an 8192 × 4096 image. Values are median speedups from three trials;
+speedup means scalar time divided by SIMD time.
 
-std::size_t i = 0;
-for (; i + width <= size; i += width) {
-    V values;
-    values.copy_from(input + i, stdx::element_aligned);
-    values = operation(values);
-    values.copy_to(output + i, stdx::element_aligned);
-}
+| Kernel | GCC | `icpx` |
+|---|---:|---:|
+| Element-wise addition | 1.17× | 1.54× |
+| Sum reduction | 5.14× | 5.15× |
+| Upper-bound clamp | 7.85× | 10.29× |
+| Count above threshold | 4.91× | 4.19× |
+| Softmax | 1.64× | 4.43× |
+| Memory-bound FMA | 1.02× | 0.99× |
+| Dot product | 1.62× | 4.03× |
+| Horizontal blur | 1.32× | 0.94× |
+| 1D convolution | 2.65× | 3.00× |
 
-for (; i < size; ++i) {
-    output[i] = scalar_operation(input[i]);
-}
-```
+Reductions, masks, dot products, and convolution benefit most. Addition, memory
+FMA, and blur are limited mainly by memory traffic.
 
-`copy_from` loads consecutive values into SIMD lanes. The operation then acts
-on all lanes, and `copy_to` stores the result. The scalar tail handles at most
-`width - 1` values that do not fill a complete vector.
+The normal `icpx` softmax build also auto-vectorizes the scalar exponential
+loop through Intel SVML. With compiler auto-vectorization disabled, its softmax
+speedup was approximately 1.44×. The softmax benchmark uses a smaller input
+because the current float normalization accumulation loses validation accuracy
+at much larger sizes.
 
-Useful operations in the examples:
+## Build
 
-```cpp
-stdx::reduce(v);       // sum all lanes
-stdx::hmax(v);         // maximum across lanes
-stdx::where(mask, v);  // conditional lanes
-```
+### Environment
 
-## Advanced examples
+The current build targets x86-64 Linux on MareNostrum 5:
 
-- **Softmax** computes
-  `exp(x_i - max(x)) / sum(exp(x_j - max(x)))`. Maximum and sum use SIMD
-  reductions; normalization is vectorized. The current source keeps exact
-  `std::exp` scalar because `std::experimental::simd` has no portable vector
-  exponential.
-- **FMA** compares a memory-bound element-wise FMA with a compute-bound dot
-  product. The dot product keeps partial sums in SIMD lanes.
-- **Blur** loads three overlapping horizontal windows. Interior pixels use
-  SIMD; image borders use scalar code.
-- **Convolution** computes several output positions at once with a reversed
-  mathematical kernel and a scalar output tail.
+- Intel Xeon Platinum 8480+ with AVX-512;
+- GCC 14.1.0 or Intel `icpx` 2025.2;
+- C++2b, `-O3`, and `-march=native`;
+- `native_simd<float>::size()` is typically 16 on this CPU.
 
-## Build and run
+Use a clean module environment when switching compilers. Both builds produce
+the same executable names.
 
-Use a clean module environment when switching compilers because both builds
-use the same executable names.
+### GCC
 
 ```bash
-# GCC
 module purge
 module load gcc/14.1.0_binutils241
-make clean && make drivers
+make clean
+make drivers
+
 ./build/01_add_scalar --size 16777216 --repetitions 10
 ./build/01_add_simd --size 16777216 --repetitions 10
 ```
+
+### Intel `icpx`
 
 ```bash
-# Intel compiler
 module purge
 module load intel/2025.2
-make clean && make CXX=icpx drivers
+make clean
+make CXX=icpx drivers
+
 ./build/01_add_scalar --size 16777216 --repetitions 10
 ./build/01_add_simd --size 16777216 --repetitions 10
 ```
 
-Build subsets with:
+Build subsets or run all default drivers with:
 
 ```bash
 make scalar
@@ -142,12 +123,7 @@ make simd
 make run
 ```
 
-The scalar targets disable compiler vectorization so they provide a useful
-baseline for studying explicit SIMD.
-
-## Benchmarking
-
-The launcher runs both implementations of one exercise and writes one CSV:
+A driver can write a combined scalar/SIMD CSV:
 
 ```bash
 scripts/benchmark.sh 02_sum \
@@ -156,35 +132,7 @@ scripts/benchmark.sh 02_sum \
     --output results/02_sum.csv
 ```
 
-Drivers use deterministic inputs, independent scalar references, and a volatile
-sink to keep the computation observable. Timed regions exclude input setup.
-
-## Current x86 results
-
-Median of three trials; each trial used the best of five repetitions on one
-exclusive MN5 node and one pinned CPU core. The 1D size was 16,777,216 elements,
-softmax used 4,194,304 elements, and blur used an 8192 × 4096 image.
-
-| Kernel | GCC speedup | `icpx` speedup |
-|---|---:|---:|
-| Add | **1.17×** | **1.54×** |
-| Sum reduction | **5.14×** | **5.15×** |
-| Upper clamp | **7.85×** | **10.29×** |
-| Count above | **4.91×** | **4.19×** |
-| Softmax | **1.64×** | **4.43×** |
-| Memory FMA | **1.02×** | **0.99×** |
-| Dot product | **1.62×** | **4.03×** |
-| Horizontal blur | **1.32×** | **0.94×** |
-| 1D convolution | **2.65×** | **3.00×** |
-
-Reductions, masks, and convolution benefit most. Add, memory FMA, and blur are
-limited mainly by memory traffic.
-
-The normal `icpx` softmax SIMD build also auto-vectorizes the scalar exponential
-loop through Intel SVML. With compiler auto-vectorization disabled, its softmax
-speedup was approximately 1.44×.
-
-## Inspecting generated instructions
+### Inspect generated instructions
 
 Inspect the final executable after linking:
 
@@ -194,17 +142,18 @@ objdump -d -C build/03_clamp_simd | grep -E 'vcmpps|vblend|vmov'
 objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
 ```
 
-Typical AVX-512 instructions include `vmovups` for loads and stores, `vaddps`
-for packed addition, `vcmpps` for comparisons, `vfmadd` for FMA, and `vmaxps`
-for packed maximum.
+## Conclusion
 
-## Takeaways
+### What This Project Demonstrates
 
-- SIMD operates on `width` values per instruction, not on the whole input at once.
-- Reductions need lane accumulators followed by a horizontal reduction.
-- Scalar tails are simple and safe for incomplete blocks.
-- Wider vectors do not guarantee speedup when memory traffic is the bottleneck.
-- Timings should be combined with correctness checks and final-binary inspection.
+- SIMD processes several values per instruction, not the whole input at once.
+- Explicit SIMD is built from vector loads, lane-wise operations, stores, and a
+  scalar tail.
+- Reductions require partial lane accumulators and horizontal reduction.
+- Compiler choice and generated instructions affect measured performance.
+- Memory bandwidth can dominate even when SIMD computation is available.
+- Correctness validation, benchmarking, and binary inspection must be done
+  together.
 
 ## License
 
