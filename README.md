@@ -1,14 +1,8 @@
 # SIMD Expression and Portability
 
-Modern C++ SIMD Programming
+This project is a compact, benchmark-driven study of explicit SIMD in modern C++.
 
-## Intro
-
-This project is a compact, benchmark-driven study of explicit SIMD in modern
-C++. It compares straightforward scalar algorithms with implementations using
-`std::experimental::simd` on x86-64 CPUs.
-
-### TL;DR
+## TL;DR
 
 - Eight progressively more demanding scalar/SIMD algorithms.
 - Explicit load–compute–store loops with safe scalar tails.
