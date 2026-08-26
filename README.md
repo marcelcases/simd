@@ -1,6 +1,6 @@
 # SIMD Expression and Portability
 
-> Modern C++ SIMD Programming
+Modern C++ SIMD Programming
 
 ## Intro
 
@@ -19,32 +19,16 @@ C++. It compares straightforward scalar algorithms with implementations using
 
 ## Project structure
 
-```text
-include/simd_examples/   Public algorithm interfaces
-src/scalar/              Scalar algorithms
-src/simd/                Explicit std::simd algorithms
-src/simd_common.h        Shared SIMD type aliases
-drivers/                 Input generation, timing, validation, and main()
-scripts/                 Benchmark launchers
-build/                   Ignored executables
-results/                 Ignored benchmark CSV files
-```
-
-Algorithms contain computation only. Drivers own input generation, timing,
-validation, and output.
-
-### Exercises
-
-| Exercise | Description |
+| Example | Description |
 |---|---|
-| [01_add](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp) | Adds two arrays element by element and introduces the basic load–operate–store loop. |
-| [02_sum](src/scalar/02_sum.cpp) · [SIMD](src/simd/02_sum.cpp) | Sums an array with SIMD lane accumulators followed by a horizontal reduction. |
-| [03_clamp](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp) | Replaces values above an upper bound using comparison masks and conditional updates. |
-| [04_count](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp) | Counts values above a threshold with a SIMD mask and `popcount`. |
-| [05_softmax](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp) | Computes numerically stable softmax using maximum and sum reductions, then vector normalization. |
-| [06_fma](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp) | Compares a memory-bound FMA kernel with a compute-bound dot product. |
-| [07_filter](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp) | Applies a horizontal image blur with overlapping loads and scalar image borders. |
-| [08_conv1d](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp) | Computes valid mathematical convolution with a reversed kernel and vectorized output blocks. |
+| Element-wise array addition<br>([scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp)) | Adds arrays element by element; introduces SIMD loops. |
+| Sum reduction<br>([scalar](src/scalar/02_sum.cpp) · [SIMD](src/simd/02_sum.cpp)) | Sums lanes, then horizontally reduces the accumulator. |
+| Upper-bound clamp<br>([scalar](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp)) | Clamps values using comparisons and conditional masks. |
+| Count above threshold<br>([scalar](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp)) | Counts threshold matches with masks and popcount. |
+| Numerically stable softmax<br>([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) | Computes stable softmax with vector reductions. |
+| FMA and dot product<br>([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)) | Contrasts memory-bound FMA with compute-bound dot product. |
+| Horizontal image blur<br>([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp)) | Blurs rows using overlapping loads and scalar borders. |
+| 1D mathematical convolution<br>([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) | Convolves with reversed kernels and vectorized outputs. |
 
 ## Key results and performance
 
@@ -154,7 +138,3 @@ objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
 - Memory bandwidth can dominate even when SIMD computation is available.
 - Correctness validation, benchmarking, and binary inspection must be done
   together.
-
-## License
-
-See [LICENSE](LICENSE).
