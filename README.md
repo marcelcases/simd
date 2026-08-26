@@ -21,14 +21,14 @@ C++. It compares straightforward scalar algorithms with implementations using
 
 | Example | Description |
 |---|---|
-| Element-wise array addition<br>([scalar](src/scalar/01_add.cpp) · [SIMD](src/simd/01_add.cpp)) | Adds arrays element by element; introduces SIMD loops. |
-| Sum reduction<br>([scalar](src/scalar/02_sum.cpp) · [SIMD](src/simd/02_sum.cpp)) | Sums lanes, then horizontally reduces the accumulator. |
-| Upper-bound clamp<br>([scalar](src/scalar/03_clamp.cpp) · [SIMD](src/simd/03_clamp.cpp)) | Clamps values using comparisons and conditional masks. |
-| Count above threshold<br>([scalar](src/scalar/04_count.cpp) · [SIMD](src/simd/04_count.cpp)) | Counts threshold matches with masks and popcount. |
-| Numerically stable softmax<br>([scalar](src/scalar/05_softmax.cpp) · [SIMD](src/simd/05_softmax.cpp)) | Computes stable softmax with vector reductions. |
-| FMA and dot product<br>([scalar](src/scalar/06_fma.cpp) · [SIMD](src/simd/06_fma.cpp)) | Contrasts memory-bound FMA with compute-bound dot product. |
-| Horizontal image blur<br>([scalar](src/scalar/07_filter.cpp) · [SIMD](src/simd/07_filter.cpp)) | Blurs rows using overlapping loads and scalar borders. |
-| 1D mathematical convolution<br>([scalar](src/scalar/08_conv1d.cpp) · [SIMD](src/simd/08_conv1d.cpp)) | Convolves with reversed kernels and vectorized outputs. |
+| [1. Element-wise array addition](docs/01_add/README.md) | Adds arrays element by element; introduces SIMD loops. |
+| [2. Sum reduction](docs/02_sum/README.md) | Sums lanes, then horizontally reduces the accumulator. |
+| [3. Upper-bound clamp](docs/03_clamp/README.md) | Clamps values using comparisons and conditional masks. |
+| [4. Count above threshold](docs/04_count/README.md) | Counts threshold matches with masks and popcount. |
+| [5. Numerically stable softmax](docs/05_softmax/README.md) | Computes stable softmax with vector reductions. |
+| [6. FMA and dot product](docs/06_fma/README.md) | Contrasts memory-bound FMA with compute-bound dot product. |
+| [7. Horizontal image blur](docs/07_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
+| [8. 1D mathematical convolution](docs/08_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
 ## Key results and performance
 
