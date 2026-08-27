@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Marcel Cases Freixenet
+
 #include "simd_examples/02_sum.hpp"
 
 namespace simd_examples::scalar {

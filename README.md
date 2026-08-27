@@ -132,3 +132,7 @@ objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
 - Memory bandwidth can dominate even when SIMD computation is available.
 - Correctness validation, benchmarking, and binary inspection must be done
   together.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

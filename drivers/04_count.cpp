@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Marcel Cases Freixenet
+
 #include "benchmark_common.hpp"
 #include "simd_examples/04_count.hpp"
 #include "benchmark_implementation.hpp"

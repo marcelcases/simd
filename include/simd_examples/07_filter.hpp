@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Marcel Cases Freixenet
+
 #pragma once
 
 namespace simd_examples {
