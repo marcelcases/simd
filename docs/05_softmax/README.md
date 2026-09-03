@@ -35,10 +35,10 @@ scalar tail.
 
 | Step | Scalar | SIMD |
 |---|---|---|
-| Find maximum | Scalar comparisons | Lane-wise maximum, then `hmax` |
-| Compute exponentials | Scalar `std::exp` | Scalar `std::exp` |
-| Sum exponentials | Scalar accumulator | SIMD accumulator, then `reduce` |
-| Normalize | Scalar division | SIMD division and store |
+| Find maximum | Compare elements one at a time | Compare each vector's lanes, then `hmax` to obtain one scalar maximum |
+| Compute exponentials | Compute `exp(value - maximum)` per element | Same computation; the source loop uses scalar `std::exp` |
+| Sum exponentials | Add each value to one scalar total | Add vector values lane-wise, then `reduce` to obtain one scalar total |
+| Normalize | Divide each value by the total | Broadcast the total, divide vector values, and store |
 
 ## SIMD notes
 
