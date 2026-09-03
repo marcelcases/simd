@@ -20,8 +20,17 @@ exponentials, reduce their sum, and normalize the values.
 
 ## Used in
 
-Softmax is widely used to turn model scores into probabilities in classification,
-attention and transformer models, and other probabilistic selection methods.
+Classification, language models and LLMs, Transformer attention,
+mixture-of-experts and routing systems, and other probabilistic selection
+methods:
+
+- **Classification:** maps class scores to class probabilities.
+- **Language models / LLMs:** turns one logit per vocabulary token into the
+  probabilities used to select or sample the next token.
+- **Attention in Transformers:** normalizes query-key similarity scores into
+  attention weights.
+- **Mixture-of-experts and routing:** turns expert scores into weights that
+  determine each expert's contribution.
 
 ## SIMD notes
 
