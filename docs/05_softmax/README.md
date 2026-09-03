@@ -42,13 +42,14 @@ scalar tail.
 
 ## SIMD notes
 
+- The SIMD API used here provides portable vector arithmetic, comparisons, and
+  reductions, but **no portable vector overload for `std::exp`**. GCC 16.2
+  provides an experimental `stdx::exp`, but our x86-64 and RVV builds
+  scalarize it rather than using vector math. The exponential loop is therefore
+  scalar in the source; a compiler or math library may still auto-vectorize it.
 - `copy_from` loads consecutive array elements into a SIMD vector, typically
   backed by vector registers rather than a newly allocated memory buffer.
 - `stdx::hmax(maximum)` horizontally reduces all vector lanes to one scalar
   maximum. `stdx::reduce` performs the analogous sum reduction.
 - Scalar tails handle input sizes that are not multiples of the vector width,
   avoiding masked-load/store overhead while keeping bounds handling simple.
-- The SIMD API provides portable vector arithmetic, comparisons, and reductions,
-  but no portable vector overload for `std::exp`. The exponential loop is
-  therefore scalar in the source; a compiler or math library may still
-  auto-vectorize it.
