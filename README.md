@@ -149,8 +149,6 @@ objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
 
 ## Conclusion
 
-### What This Project Demonstrates
-
 - SIMD processes several values per instruction, not the whole input at once.
 - Explicit SIMD is built from vector loads, lane-wise operations, stores, and a
   scalar tail.
