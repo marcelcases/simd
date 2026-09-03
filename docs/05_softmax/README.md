@@ -20,10 +20,6 @@ exponentials, reduce their sum, and normalize the values.
 
 ## Used in
 
-Classification, language models and LLMs, Transformer attention,
-mixture-of-experts and routing systems, and other probabilistic selection
-methods:
-
 - **Classification:** maps class scores to class probabilities.
 - **Language models / LLMs:** turns one logit per vocabulary token into the
   probabilities used to select or sample the next token.
