@@ -8,12 +8,12 @@ or add up to one. Softmax converts a vector of logits into probabilities:
 softmax(x_i) = exp(x_i) / sum(exp(x_j))
 ```
 
-> **Numerical stability note.** Softmax is shift-invariant:
-> `softmax(x - c) = softmax(x)`. For example, subtracting the maximum from
-> `[0, 1, 3]` produces `[-3, -2, 0]`; both inputs produce
-> `[0.0420, 0.1142, 0.8438]`. The shifted maximum is zero, so every finite
-> exponential is at most one. This avoids exponential overflow without changing
-> the resulting probabilities.
+**Numerical stability.** Softmax is shift-invariant:
+`softmax(x - c) = softmax(x)`. For example, subtracting the maximum from
+`[0, 1, 3]` produces `[-3, -2, 0]`; both inputs produce
+`[0.0420, 0.1142, 0.8438]`. The shifted maximum is zero, so every finite
+exponential is at most one. This avoids exponential overflow without changing
+the resulting probabilities.
 
 The SIMD implementation uses four phases: find the maximum, compute
 exponentials, reduce their sum, and normalize the values.
