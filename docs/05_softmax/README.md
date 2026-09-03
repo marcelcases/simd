@@ -1,8 +1,8 @@
 # 5. Numerically Stable Softmax
 
 A logit is an unnormalized, real-valued score produced by a model before it
-is converted into a probability. Logits do not need to be between zero and one
-or add up to one. Softmax converts a vector of logits into probabilities:
+is converted into a probability. Softmax converts a vector of logits into
+probabilities: values between zero and one that add up to one.
 
 ```text
 softmax(x_i) = exp(x_i) / sum(exp(x_j))
