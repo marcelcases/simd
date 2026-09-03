@@ -26,13 +26,17 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 ## Key results and performance
 
+The 1D kernels used 16,777,216 elements, softmax used 4,194,304 elements, and
+blur used an 8192 × 4096 image. Values are median speedups from three trials;
+speedup means scalar time divided by SIMD time. The softmax benchmark uses a
+smaller input because the current float normalization accumulation loses
+validation accuracy at much larger sizes.
+
+### x86_64
+
 Results are from an Intel Xeon Platinum 8480+ on one exclusive MN5 node and one
 pinned CPU core. Scalar targets disable compiler vectorization; SIMD targets
 use explicit `std::experimental::simd` with normal optimization.
-
-The 1D kernels used 16,777,216 elements, softmax used 4,194,304 elements, and
-blur used an 8192 × 4096 image. Values are median speedups from three trials;
-speedup means scalar time divided by SIMD time.
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
@@ -51,9 +55,32 @@ FMA, and blur are limited mainly by memory traffic.
 
 The normal `icpx` softmax build also auto-vectorizes the scalar exponential
 loop through Intel SVML. With compiler auto-vectorization disabled, its softmax
-speedup was approximately 1.44×. The softmax benchmark uses a smaller input
-because the current float normalization accumulation loses validation accuracy
-at much larger sizes.
+speedup was approximately 1.44×.
+
+### RISC-V
+
+RISC-V binaries were cross-compiled with conda-forge GCC 16.2 and executed on a
+Banana Pi F3 through the `bananaf3` queue. The target provides RVV 1.0 with a
+256-bit VLEN (`vlenb_bytes=32`). GCC/libstdc++ reports one lane for
+`native_simd<float>` on this target, so the comparison uses fixed-size SIMD
+widths of four and eight lanes.
+
+| Kernel | `VL=4` speedup | `VL=8` speedup |
+|---|---:|---:|
+| Element-wise addition | 1.43× | 1.43× |
+| Sum reduction | 1.88× | 4.80× |
+| Upper-bound clamp | 4.29× | 2.94× |
+| Count above threshold | 1.33× | 2.04× |
+| Softmax | 1.23× | 1.22× |
+| Memory-bound FMA | 1.48× | 1.55× |
+| Dot product | 1.30× | 1.94× |
+| Horizontal blur | 1.78× | 2.21× |
+| 1D convolution | 1.48× | 1.77× |
+
+The `VL=4` and `VL=8` values select software vector widths; they do not change
+the hardware VLEN. The `count_above` SIMD function contained no RVV
+instructions in the final binaries, so its measured gain came from scalar
+unrolling rather than genuine vector execution.
 
 ## Build
 
