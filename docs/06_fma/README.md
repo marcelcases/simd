@@ -1,9 +1,9 @@
-# 6. FMA and Dot Product
+# 6. Fused Multiply-Add (FMA) and Dot Product
 
 [Scalar source](../../src/scalar/06_fma.cpp) | [SIMD source](../../src/simd/06_fma.cpp)
 
 This exercise contains two kernels that share multiplication and addition but
-have different dataflows:
+have different dataflows. One of them is a fused multiply-add (FMA) kernel:
 
 - `fma_memory_bound` computes `output[i] = a[i] * b[i] + c[i]` for every index
   and stores an output array.
@@ -14,7 +14,7 @@ the second emphasizes arithmetic and a final reduction.
 
 ## Used in
 
-- Memory-bound FMA: element-wise tensor operations, scaling and biasing arrays,
+- Fused multiply-add (FMA): element-wise tensor operations, scaling and biasing arrays,
   and signal-processing kernels.
 - Dot product: BLAS operations, matrix multiplication, neural-network layers,
   vector similarity, and correlation.
@@ -26,7 +26,7 @@ vector-width groups and uses a scalar tail.
 
 | Kernel | Scalar | SIMD |
 |---|---|---|
-| Memory-bound FMA | Compute `a[i] * b[i] + c[i]` and store the result | Load three vector groups, apply `stdx::fma`, and store the result |
+| Fused multiply-add (FMA) | Compute `a[i] * b[i] + c[i]` and store the result | Load three vector groups, apply `stdx::fma`, and store the result |
 | Dot product | Multiply each pair and add it to a scalar accumulator | Load two vector groups, accumulate with `stdx::fma`, then reduce the lanes |
 
 ## SIMD notes
