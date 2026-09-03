@@ -98,6 +98,9 @@ the same executable names.
 
 ### GCC
 
+<details>
+<summary>GCC build and run commands</summary>
+
 ```bash
 module purge
 module load gcc/14.1.0_binutils241
@@ -108,7 +111,12 @@ make drivers
 ./build/01_add_simd --size 16777216 --repetitions 10
 ```
 
+</details>
+
 ### Intel `icpx`
+
+<details>
+<summary>Intel <code>icpx</code> build and run commands</summary>
 
 ```bash
 module purge
@@ -120,7 +128,12 @@ make CXX=icpx drivers
 ./build/01_add_simd --size 16777216 --repetitions 10
 ```
 
+</details>
+
 Build subsets or run all default drivers with:
+
+<details>
+<summary>Make targets</summary>
 
 ```bash
 make scalar
@@ -128,7 +141,12 @@ make simd
 make run
 ```
 
+</details>
+
 A driver can write a combined scalar/SIMD CSV:
+
+<details>
+<summary>Benchmark command</summary>
 
 ```bash
 scripts/benchmark.sh 02_sum \
@@ -137,15 +155,22 @@ scripts/benchmark.sh 02_sum \
     --output results/02_sum.csv
 ```
 
+</details>
+
 ### Inspect generated instructions
 
 Inspect the final executable after linking:
+
+<details>
+<summary>Inspection commands</summary>
 
 ```bash
 objdump -d -C build/01_add_simd | grep -E 'vaddps|vmov'
 objdump -d -C build/03_clamp_simd | grep -E 'vcmpps|vblend|vmov'
 objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
 ```
+
+</details>
 
 ## Conclusion
 
