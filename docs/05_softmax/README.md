@@ -1,5 +1,7 @@
 # 5. Numerically Stable Softmax
 
+[Scalar source](../../src/scalar/05_softmax.cpp) | [SIMD source](../../src/simd/05_softmax.cpp)
+
 A logit is an unnormalized, real-valued score produced by a model before it
 is converted into a probability. Softmax converts a vector of logits into
 probabilities: values between zero and one that add up to one.
@@ -15,9 +17,6 @@ softmax(x_i) = exp(x_i) / sum(exp(x_j))
 exponential is at most one. This avoids exponential overflow without changing
 the resulting probabilities.
 
-The SIMD implementation uses four phases: find the maximum, compute
-exponentials, reduce their sum, and normalize the values.
-
 ## Used in
 
 - Classification: maps class scores to class probabilities.
@@ -27,6 +26,19 @@ exponentials, reduce their sum, and normalize the values.
   attention weights.
 - Mixture-of-experts and routing: turns expert scores into weights that
   determine each expert's contribution.
+
+## Kernel workflow
+
+Both kernels compute the same four steps. The scalar version handles one value
+at a time; the SIMD version handles full vector-width groups and finishes with a
+scalar tail.
+
+| Step | Scalar | SIMD |
+|---|---|---|
+| Find maximum | Scalar comparisons | Lane-wise maximum, then `hmax` |
+| Compute exponentials | Scalar `std::exp` | Scalar `std::exp` |
+| Sum exponentials | Scalar accumulator | SIMD accumulator, then `reduce` |
+| Normalize | Scalar division | SIMD division and store |
 
 ## SIMD notes
 
