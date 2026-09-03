@@ -2,15 +2,20 @@
 
 ## Description
 
-Softmax converts logits into probabilities:
+A logit is an unnormalized, real-valued score produced by a model before it
+is converted into a probability. Logits do not need to be between zero and one
+or add up to one. Softmax converts a vector of logits into probabilities:
 
 ```text
 softmax(x_i) = exp(x_i) / sum(exp(x_j))
 ```
 
-Subtracting the maximum logit before taking exponentials does not change the
-probabilities because `softmax(x - c) = softmax(x)`. Choosing `c = max(x)`
-prevents exponential overflow and gives a numerically stable softmax.
+> **Numerical stability note.** Softmax is shift-invariant:
+> `softmax(x - c) = softmax(x)`. For example, subtracting the maximum from
+> `[0, 1, 3]` produces `[-3, -2, 0]`; both inputs produce
+> `[0.0420, 0.1142, 0.8438]`. The shifted maximum is zero, so every finite
+> exponential is at most one. This avoids exponential overflow without changing
+> the resulting probabilities.
 
 The SIMD implementation uses four phases: find the maximum, compute
 exponentials, reduce their sum, and normalize the values.
@@ -32,17 +37,3 @@ attention and transformer models, and other probabilistic selection methods.
   but no portable vector overload for `std::exp`. The exponential loop is
   therefore scalar in the source; a compiler or math library may still
   auto-vectorize it.
-
-## Example
-
-```text
-softmax([0, 1, 3]) = softmax([-3, -2, 0])
-                   = [0.0420, 0.1142, 0.8438]
-```
-
-## Run
-
-```bash
-./build/05_softmax_scalar --size 4194304 --repetitions 5
-./build/05_softmax_simd   --size 4194304 --repetitions 5
-```
