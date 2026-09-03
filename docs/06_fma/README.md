@@ -9,12 +9,25 @@ have different dataflows. One of them is a fused multiply-add (FMA) kernel:
   and stores an output array.
 - `dot_product` computes `sum(a[i] * b[i])` and returns one scalar result.
 
-The `fma_memory_bound` kernel is memory-bound: each output requires three input
-loads and one output store, but only one fused multiply-add. The processor may
-spend more time moving data than doing arithmetic, so SIMD can have limited
-benefit even when the arithmetic itself vectorizes. By contrast, `dot_product`
-reads two inputs per product, keeps partial sums in a SIMD accumulator, and
-performs a final reduction, making it more focused on arithmetic and reduction.
+The kernels perform the same fused multiply-add arithmetic but move different
+amounts of data. For each index, `fma_memory_bound` must read `a[i]`, `b[i]`,
+and `c[i]`, then write `output[i]`. The dot product only reads `a[i]` and
+`b[i]`; its accumulator stays in **registers** during the loop, and it produces
+only one final scalar result.
+
+This makes the FMA kernel more strongly memory-bound. Ignoring cache effects and
+amortizing the single final scalar over all elements, a simple estimate using
+32-bit floats is:
+
+```text
+Fused multiply-add:  2 FLOPs / 16 bytes = 0.125 FLOPs per byte
+Dot product:         2 FLOPs /  8 bytes = 0.25   FLOPs per byte
+```
+
+The dot product therefore has twice the arithmetic intensity. It is less
+strongly dominated by memory traffic and makes SIMD arithmetic and reduction
+more visible, although it can still be memory-bound depending on the hardware
+and cache behavior.
 
 ## Used in
 
