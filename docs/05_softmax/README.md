@@ -20,12 +20,12 @@ exponentials, reduce their sum, and normalize the values.
 
 ## Used in
 
-- **Classification:** maps class scores to class probabilities.
-- **Language models / LLMs:** turns one logit per vocabulary token into the
+- Classification: maps class scores to class probabilities.
+- Language models / LLMs: turns one logit per vocabulary token into the
   probabilities used to select or sample the next token.
-- **Attention in Transformers:** normalizes query-key similarity scores into
+- Attention in Transformers: normalizes query-key similarity scores into
   attention weights.
-- **Mixture-of-experts and routing:** turns expert scores into weights that
+- Mixture-of-experts and routing: turns expert scores into weights that
   determine each expert's contribution.
 
 ## SIMD notes
