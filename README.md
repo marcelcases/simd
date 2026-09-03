@@ -24,10 +24,6 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 | [7. Horizontal image blur](docs/07_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
 | [8. 1D mathematical convolution](docs/08_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
-## Reference
-
-- [C++ experimental SIMD](https://en.cppreference.com/cpp/experimental/simd)
-
 ## Key results and performance
 
 The 1D kernels used 16,777,216 elements and softmax used 4,194,304 elements.
@@ -186,6 +182,10 @@ objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
 - Memory bandwidth can dominate even when SIMD computation is available.
 - Correctness validation, benchmarking, and binary inspection must be done
   together.
+
+## Reference
+
+- [C++ experimental SIMD](https://en.cppreference.com/cpp/experimental/simd)
 
 ## License
 
