@@ -26,8 +26,8 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 ## Key results and performance
 
-The 1D kernels used 16,777,216 elements, softmax used 4,194,304 elements, and
-blur used an 8192 × 4096 image. Values are median speedups from three trials;
+The 1D kernels used 16,777,216 elements and softmax used 4,194,304 elements.
+Values are median speedups from three trials;
 speedup means scalar time divided by SIMD time. The softmax benchmark uses a
 smaller input because the current float normalization accumulation loses
 validation accuracy at much larger sizes.
@@ -47,11 +47,11 @@ use explicit `std::experimental::simd` with normal optimization.
 | Softmax | 1.64× | 4.43× |
 | Memory-bound FMA | 1.02× | 0.99× |
 | Dot product | 1.62× | 4.03× |
-| Horizontal blur | 1.32× | 0.94× |
-| 1D convolution | 2.65× | 3.00× |
+| Horizontal blur | TBD | TBD |
+| 1D convolution | TBD | TBD |
 
-Reductions, masks, dot products, and convolution benefit most. Addition, memory
-FMA, and blur are limited mainly by memory traffic.
+Among exercises 1–6, reductions, masks, and dot products benefit most. Addition
+and memory FMA are limited mainly by memory traffic.
 
 The normal `icpx` softmax build also auto-vectorizes the scalar exponential
 loop through Intel SVML. With compiler auto-vectorization disabled, its softmax
@@ -74,8 +74,8 @@ widths of four and eight lanes.
 | Softmax | 1.23× | 1.22× |
 | Memory-bound FMA | 1.48× | 1.55× |
 | Dot product | 1.30× | 1.94× |
-| Horizontal blur | 1.78× | 2.21× |
-| 1D convolution | 1.48× | 1.77× |
+| Horizontal blur | TBD | TBD |
+| 1D convolution | TBD | TBD |
 
 The `VL=4` and `VL=8` values select software vector widths; they do not change
 the hardware VLEN. The `count_above` SIMD function contained no RVV
