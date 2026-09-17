@@ -140,10 +140,19 @@ make run
 
 </details>
 
-A driver can write a combined scalar/SIMD CSV:
+Run all completed exercises with the default methodology and write one unified
+scalar/SIMD CSV:
 
 <details>
-<summary>Benchmark command</summary>
+<summary>Benchmark commands</summary>
+
+```bash
+scripts/benchmark.sh
+# results/benchmark.csv
+```
+
+The default is three warm-ups, ten inner calls, and nine outer samples. Run one
+exercise or override any value when needed:
 
 ```bash
 scripts/benchmark.sh 02_reduction_dot \
