@@ -37,12 +37,12 @@ use explicit `std::experimental::simd` with normal optimization.
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
-| Element-wise addition | 1.56× | 1.41× |
-| Memory-bound FMA | 1.03× | 1.01× |
-| Sum reduction | 5.11× | 5.32× |
-| Dot product | 1.75× | 4.45× |
-| Upper-bound clamp | 6.79× | 10.29× |
-| Count above threshold | 5.14× | 4.19× |
+| Element-wise addition | 1.62× | 1.41× |
+| Memory-bound FMA | 1.04× | 1.01× |
+| Sum reduction | 5.37× | 5.32× |
+| Dot product | 1.78× | 4.45× |
+| Upper-bound clamp | 6.81× | 10.29× |
+| Count above threshold | 4.85× | 4.19× |
 | Softmax | 1.57× | 2.35× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
