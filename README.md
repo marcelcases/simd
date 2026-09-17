@@ -25,11 +25,21 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 ## Key results and performance
 
-The 1D kernels used 16,777,216 elements and softmax used 4,194,304 elements.
-Values are median speedups from three trials;
-speedup means scalar time divided by SIMD time. The softmax benchmark uses a
-smaller input because the current float normalization accumulation loses
-validation accuracy at much larger sizes.
+Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
+elements. Each kernel runs three untimed warm-ups followed by nine outer samples
+of ten inner iterations. Each sample is divided by ten to obtain time per call;
+the reported speedup uses the median sample. Minimum and maximum samples are
+also written to CSV.
+
+Allocation, input generation, and per-sample setup stay outside timed regions.
+Correctness is validated separately from timing. Mutable inputs are restored
+before each outer sample; clamp rotates through preinitialized buffers so every
+inner iteration sees the original value distribution. The longer timed regions
+and warm-ups reduce timer noise, first-call effects, and power-state variation.
+
+Softmax retains the earlier three-trial result with 4,194,304 elements. Its
+smaller input avoids validation loss from float normalization accumulation at
+larger sizes.
 
 ### x86_64
 
@@ -39,12 +49,12 @@ use explicit `std::experimental::simd` with normal optimization.
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
-| Element-wise addition | 1.17× | 1.54× |
-| Memory-bound FMA | 1.02× | 0.99× |
-| Sum reduction | 5.14× | 5.15× |
-| Dot product | 1.62× | 4.03× |
-| Upper-bound clamp | 7.85× | 10.29× |
-| Count above threshold | 4.91× | 4.19× |
+| Element-wise addition | 1.56× | 1.41× |
+| Memory-bound FMA | 1.03× | 1.01× |
+| Sum reduction | 5.11× | 5.32× |
+| Dot product | 1.75× | 4.45× |
+| Upper-bound clamp | 6.79× | 10.29× |
+| Count above threshold | 5.14× | 4.19× |
 | Softmax | 1.64× | 4.43× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
@@ -66,12 +76,12 @@ widths of four and eight lanes.
 
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
-| Element-wise addition | 1.43× | 1.43× |
-| Memory-bound FMA | 1.48× | 1.55× |
-| Sum reduction | 1.88× | 4.80× |
-| Dot product | 1.30× | 1.94× |
-| Upper-bound clamp | 4.29× | 2.94× |
-| Count above threshold | 1.33× | 2.04× |
+| Element-wise addition | 1.64× | 1.66× |
+| Memory-bound FMA | 1.27× | 1.53× |
+| Sum reduction | 1.85× | 4.78× |
+| Dot product | 1.30× | 2.14× |
+| Upper-bound clamp | 3.85× | 2.61× |
+| Count above threshold | 1.29× | 1.98× |
 | Softmax | 1.23× | 1.22× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
@@ -150,7 +160,9 @@ A driver can write a combined scalar/SIMD CSV:
 ```bash
 scripts/benchmark.sh 02_reduction_dot \
     --size 16777216 \
-    --repetitions 10 \
+    --warmups 3 \
+    --iterations 10 \
+    --samples 9 \
     --output results/02_reduction_dot.csv
 ```
 

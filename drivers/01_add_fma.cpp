@@ -10,13 +10,17 @@ namespace {
 
 using simd_examples::benchmark::OneDimOptions;
 using simd_examples::benchmark::ParseResult;
+using simd_examples::benchmark::TimingResult;
 
 void write_row(std::ostream& output, const OneDimOptions& options,
-               const char* kernel, double time, double result, float difference) {
+               const char* kernel, const TimingResult& timing,
+               double result, float difference) {
     output << "01_add_fma," << kernel << ","
            << simd_examples::benchmark::implementation_name << ","
-           << options.size << "," << options.repetitions << ","
-           << time << "," << result << "," << difference << "\n";
+           << options.size << "," << options.warmups << ","
+           << options.iterations << "," << options.samples << ","
+           << timing.median_ms << "," << timing.minimum_ms << ","
+           << timing.maximum_ms << "," << result << "," << difference << "\n";
 }
 
 } // namespace
@@ -41,17 +45,19 @@ int main(int argc, char** argv) {
     simd_examples::benchmark::reference::add(
         expected.data(), source.data(), options.size);
 
-    const double time = simd_examples::benchmark::best_time_ms(
+    const auto add_timing = simd_examples::benchmark::measure_kernel_ms(
         [&] { destination = source; },
-        [&]() -> double {
+        [&] {
             simd_examples::benchmark::implementation::add(
                 destination.data(), source.data(), options.size);
-            return simd_examples::benchmark::checksum(
-                destination.begin(), destination.end());
-        }, options.repetitions);
-    const double result = simd_examples::benchmark::checksum(
+        }, options.warmups, options.iterations, options.samples);
+
+    destination = source;
+    simd_examples::benchmark::implementation::add(
+        destination.data(), source.data(), options.size);
+    const double add_result = simd_examples::benchmark::checksum(
         destination.begin(), destination.end());
-    const float difference = simd_examples::benchmark::max_abs_difference(
+    const float add_difference = simd_examples::benchmark::max_abs_difference(
         destination.data(), expected.data(), options.size);
 
     std::vector<float> a(options.size), b(options.size), c(options.size);
@@ -66,22 +72,28 @@ int main(int argc, char** argv) {
 
     simd_examples::benchmark::reference::fma_memory_bound(
         a.data(), b.data(), c.data(), expected_output.data(), options.size);
-    const double memory_time = simd_examples::benchmark::best_time_ms(
+    const auto fma_timing = simd_examples::benchmark::measure_kernel_ms(
+        [] {},
         [&] {
             simd_examples::benchmark::implementation::fma_memory_bound(
                 a.data(), b.data(), c.data(), output.data(), options.size);
-        }, options.repetitions);
-    const double memory_result = simd_examples::benchmark::checksum(
+        }, options.warmups, options.iterations, options.samples);
+
+    simd_examples::benchmark::implementation::fma_memory_bound(
+        a.data(), b.data(), c.data(), output.data(), options.size);
+    const double fma_result = simd_examples::benchmark::checksum(
         output.begin(), output.end());
-    const float memory_difference = simd_examples::benchmark::max_abs_difference(
+    const float fma_difference = simd_examples::benchmark::max_abs_difference(
         output.data(), expected_output.data(), options.size);
 
     const bool written = simd_examples::benchmark::write_output(
-        options.output, [&](std::ostream& output) {
-            output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
-            write_row(output, options, "add", time, result, difference);
-            write_row(output, options, "memory_fma", memory_time,
-                      memory_result, memory_difference);
+        options.output, [&](std::ostream& output_stream) {
+            output_stream << "exercise,kernel,implementation,size,warmups,iterations,samples,median_time_ms,min_time_ms,max_time_ms,result,max_abs_difference\n";
+            write_row(output_stream, options, "add", add_timing,
+                      add_result, add_difference);
+            write_row(output_stream, options, "memory_fma", fma_timing,
+                      fma_result, fma_difference);
         });
-    return written && memory_difference <= 1e-5f && difference <= 1e-6f ? 0 : 1;
+    return written && add_difference <= 1e-6f && fma_difference <= 1e-5f
+        ? 0 : 1;
 }

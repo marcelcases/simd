@@ -67,6 +67,50 @@ double best_time_ms(Setup&& setup, F&& function, int repetitions) {
     return best;
 }
 
+struct TimingResult {
+    double median_ms;
+    double minimum_ms;
+    double maximum_ms;
+};
+
+template<class F>
+void invoke_benchmark(F& function) {
+    using result_type = std::invoke_result_t<F&>;
+    if constexpr (std::is_void_v<result_type>) {
+        function();
+    } else {
+        benchmark_sink = function();
+    }
+}
+
+template<class Setup, class F>
+TimingResult measure_kernel_ms(Setup&& setup, F&& function, int warmups,
+                               int iterations, int samples) {
+    using clock = std::chrono::steady_clock;
+
+    for (int i = 0; i < warmups; ++i) {
+        setup();
+        invoke_benchmark(function);
+    }
+
+    std::vector<double> times;
+    times.reserve(static_cast<std::size_t>(samples));
+    for (int sample = 0; sample < samples; ++sample) {
+        setup();
+        const auto start = clock::now();
+        for (int iteration = 0; iteration < iterations; ++iteration) {
+            invoke_benchmark(function);
+        }
+        const auto stop = clock::now();
+        const double elapsed =
+            std::chrono::duration<double, std::milli>(stop - start).count();
+        times.push_back(elapsed / iterations);
+    }
+
+    std::sort(times.begin(), times.end());
+    return {times[times.size() / 2], times.front(), times.back()};
+}
+
 inline bool within_tolerance(float actual, float expected,
                              float relative = 1e-3f,
                              float absolute = 1e-5f) {
@@ -108,6 +152,9 @@ inline float max_abs_difference(const float* a, const float* b, std::size_t size
 struct OneDimOptions {
     std::size_t size = 1ULL << 24;
     int repetitions = 10;
+    int warmups = 3;
+    int iterations = 10;
+    int samples = 9;
     std::string output;
 };
 
@@ -122,6 +169,12 @@ inline ParseResult parse_one_dim_options(int argc, char** argv,
             options.size = std::stoull(argv[++i]);
         } else if (argument == "--repetitions" && i + 1 < argc) {
             options.repetitions = std::stoi(argv[++i]);
+        } else if (argument == "--warmups" && i + 1 < argc) {
+            options.warmups = std::stoi(argv[++i]);
+        } else if (argument == "--iterations" && i + 1 < argc) {
+            options.iterations = std::stoi(argv[++i]);
+        } else if (argument == "--samples" && i + 1 < argc) {
+            options.samples = std::stoi(argv[++i]);
         } else if (argument == "--output" && i + 1 < argc) {
             options.output = argv[++i];
         } else if (argument == "--help") {
@@ -131,7 +184,8 @@ inline ParseResult parse_one_dim_options(int argc, char** argv,
         }
     }
 
-    if (options.size == 0 || options.repetitions <= 0) {
+    if (options.size == 0 || options.repetitions <= 0 ||
+        options.warmups < 0 || options.iterations <= 0 || options.samples <= 0) {
         return ParseResult::error;
     }
     return ParseResult::success;
@@ -139,7 +193,8 @@ inline ParseResult parse_one_dim_options(int argc, char** argv,
 
 inline void print_one_dim_usage([[maybe_unused]] std::string_view program) {
     std::cerr << "Usage: " << program
-              << " [--size N] [--repetitions N] [--output FILE]\n";
+              << " [--size N] [--repetitions N] [--warmups N]"
+                 " [--iterations N] [--samples N] [--output FILE]\n";
 }
 
 

@@ -10,13 +10,17 @@ namespace {
 
 using simd_examples::benchmark::OneDimOptions;
 using simd_examples::benchmark::ParseResult;
+using simd_examples::benchmark::TimingResult;
 
 void write_csv(std::ostream& output, const OneDimOptions& options,
-               double time, std::size_t result, std::size_t difference) {
-    output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
-    output << "04_count,count," << simd_examples::benchmark::implementation_name << ","
-           << options.size << "," << options.repetitions << ","
-           << time << "," << result << "," << difference << "\n";
+               const TimingResult& timing, std::size_t result,
+               std::size_t difference) {
+    output << "exercise,kernel,implementation,size,warmups,iterations,samples,median_time_ms,min_time_ms,max_time_ms,result,max_abs_difference\n";
+    output << "04_count,count," << simd_examples::benchmark::implementation_name
+           << "," << options.size << "," << options.warmups << ","
+           << options.iterations << "," << options.samples << ","
+           << timing.median_ms << "," << timing.minimum_ms << ","
+           << timing.maximum_ms << "," << result << "," << difference << "\n";
 }
 
 } // namespace
@@ -40,18 +44,20 @@ int main(int argc, char** argv) {
 
     const std::size_t expected = simd_examples::benchmark::reference::count_above(
         values.data(), options.size, threshold);
-    const double time = simd_examples::benchmark::best_time_ms(
+    const auto timing = simd_examples::benchmark::measure_kernel_ms(
+        [] {},
         [&]() -> std::size_t {
             return simd_examples::benchmark::implementation::count_above(
                 values.data(), options.size, threshold);
-        }, options.repetitions);
+        }, options.warmups, options.iterations, options.samples);
     const std::size_t result = simd_examples::benchmark::implementation::count_above(
         values.data(), options.size, threshold);
-    const std::size_t difference = result > expected ? result - expected : expected - result;
+    const std::size_t difference = result > expected
+        ? result - expected : expected - result;
 
     const bool written = simd_examples::benchmark::write_output(
         options.output, [&](std::ostream& output) {
-            write_csv(output, options, time, result, difference);
+            write_csv(output, options, timing, result, difference);
         });
     return written && difference == 0 ? 0 : 1;
 }
