@@ -19,7 +19,7 @@ fi
 exercise="$1"
 shift
 case "$exercise" in
-    01_add|02_sum|03_clamp|04_count|05_softmax|06_fma|07_filter|08_conv1d) ;;
+    01_add_fma|02_reduction_dot|03_clamp|04_count|05_softmax|06_filter|07_conv1d) ;;
     *)
         echo "Unknown exercise: $exercise" >&2
         exit 1

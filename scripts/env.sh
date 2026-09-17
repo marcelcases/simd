@@ -11,6 +11,6 @@ module load gcc/14.1.0_binutils241
 
 # 4. Build and run benchmark drivers
 # make drivers
-# ./build/01_add_scalar
-# ./build/01_add_simd
-# scripts/benchmark.sh 01_add --output results/01_add.csv
+# ./build/01_add_fma_scalar
+# ./build/01_add_fma_simd
+# scripts/benchmark.sh 01_add_fma --output results/01_add_fma.csv

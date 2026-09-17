@@ -4,7 +4,7 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 ## TL;DR
 
-- Eight progressively more demanding scalar/SIMD algorithms.
+- Seven progressively more demanding scalar/SIMD exercises.
 - Explicit load–compute–store loops with safe scalar tails.
 - Reductions, masks, FMA, sliding windows, softmax, and convolution.
 - Independent correctness checks and isolated executables.
@@ -15,14 +15,13 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 | Example | Description |
 |---|---|
-| [1. Element-wise array addition](docs/01_add/README.md) | Adds arrays element by element; introduces SIMD loops. |
-| [2. Sum reduction](docs/02_sum/README.md) | Sums lanes, then horizontally reduces the accumulator. |
+| [1. Addition and fused multiply-add (FMA)](docs/01_add_fma/README.md) | Element-wise addition and multiply-add with vector loads and stores. |
+| [2. Reduction and dot product](docs/02_reduction_dot/README.md) | Accumulates sums and products in lanes, then reduces to a scalar. |
 | [3. Upper-bound clamp](docs/03_clamp/README.md) | Clamps values using comparisons and conditional masks. |
 | [4. Count above threshold](docs/04_count/README.md) | Counts threshold matches with masks and popcount. |
 | [5. Numerically stable softmax](docs/05_softmax/README.md) | Computes stable softmax with vector reductions. |
-| [6. FMA and dot product](docs/06_fma/README.md) | Contrasts memory-bound FMA with compute-bound dot product. |
-| [7. Horizontal image blur](docs/07_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
-| [8. 1D mathematical convolution](docs/08_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
+| [6. Horizontal image blur](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
+| [7. 1D mathematical convolution](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
 ## Key results and performance
 
@@ -41,16 +40,16 @@ use explicit `std::experimental::simd` with normal optimization.
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
 | Element-wise addition | 1.17× | 1.54× |
+| Memory-bound FMA | 1.02× | 0.99× |
 | Sum reduction | 5.14× | 5.15× |
+| Dot product | 1.62× | 4.03× |
 | Upper-bound clamp | 7.85× | 10.29× |
 | Count above threshold | 4.91× | 4.19× |
 | Softmax | 1.64× | 4.43× |
-| Memory-bound FMA | 1.02× | 0.99× |
-| Dot product | 1.62× | 4.03× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
 
-Among exercises 1–6, reductions, masks, and dot products benefit most. Addition
+Among exercises 1–5, reductions, masks, and dot products benefit most. Addition
 and memory FMA are limited mainly by memory traffic.
 
 The normal `icpx` softmax build also auto-vectorizes the scalar exponential
@@ -68,12 +67,12 @@ widths of four and eight lanes.
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
 | Element-wise addition | 1.43× | 1.43× |
+| Memory-bound FMA | 1.48× | 1.55× |
 | Sum reduction | 1.88× | 4.80× |
+| Dot product | 1.30× | 1.94× |
 | Upper-bound clamp | 4.29× | 2.94× |
 | Count above threshold | 1.33× | 2.04× |
 | Softmax | 1.23× | 1.22× |
-| Memory-bound FMA | 1.48× | 1.55× |
-| Dot product | 1.30× | 1.94× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
 
@@ -107,8 +106,8 @@ module load gcc/14.1.0_binutils241
 make clean
 make drivers
 
-./build/01_add_scalar --size 16777216 --repetitions 10
-./build/01_add_simd --size 16777216 --repetitions 10
+./build/01_add_fma_scalar --size 16777216 --repetitions 10
+./build/01_add_fma_simd --size 16777216 --repetitions 10
 ```
 
 </details>
@@ -124,8 +123,8 @@ module load intel/2025.2
 make clean
 make CXX=icpx drivers
 
-./build/01_add_scalar --size 16777216 --repetitions 10
-./build/01_add_simd --size 16777216 --repetitions 10
+./build/01_add_fma_scalar --size 16777216 --repetitions 10
+./build/01_add_fma_simd --size 16777216 --repetitions 10
 ```
 
 </details>
@@ -149,10 +148,10 @@ A driver can write a combined scalar/SIMD CSV:
 <summary>Benchmark command</summary>
 
 ```bash
-scripts/benchmark.sh 02_sum \
+scripts/benchmark.sh 02_reduction_dot \
     --size 16777216 \
     --repetitions 10 \
-    --output results/02_sum.csv
+    --output results/02_reduction_dot.csv
 ```
 
 </details>
@@ -165,9 +164,9 @@ Inspect the final executable after linking:
 <summary>Inspection commands</summary>
 
 ```bash
-objdump -d -C build/01_add_simd | grep -E 'vaddps|vmov'
+objdump -d -C build/01_add_fma_simd | grep -E 'vaddps|vmov'
 objdump -d -C build/03_clamp_simd | grep -E 'vcmpps|vblend|vmov'
-objdump -d -C build/06_fma_simd | grep -E 'vfmadd|vmov'
+objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 ```
 
 </details>

@@ -1,7 +1,7 @@
 # Scalar and std::simd algorithms with isolated benchmark executables.
 
 BUILD_DIR := build
-EXERCISES := 01_add 02_sum 03_clamp 04_count 05_softmax 06_fma 07_filter 08_conv1d
+EXERCISES := 01_add_fma 02_reduction_dot 03_clamp 04_count 05_softmax 06_filter 07_conv1d
 SCALAR_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _scalar,$(EXERCISES)))
 SIMD_TARGETS := $(addprefix $(BUILD_DIR)/,$(addsuffix _simd,$(EXERCISES)))
 DRIVER_TARGETS := $(SCALAR_TARGETS) $(SIMD_TARGETS)
@@ -101,7 +101,7 @@ run-riscv-both: $(RISCV_TARGETS)
 	@echo "\n========================================\n"
 	@$(MAKE) run-riscv-512
 
-verify-riscv: $(BUILD_DIR)/01_add_simd.riscv
+verify-riscv: $(BUILD_DIR)/01_add_fma_simd.riscv
 	@echo "=== Checking the RISC-V binary for Vector (RVV) instructions ==="
 	@$(RISCV_OBJDUMP) -d $< | grep -E 'vle32\.v|vse32\.v|vfadd\.vv|vfmacc\.vv' || \
 		echo "No RVV instructions found - check compiler flags"

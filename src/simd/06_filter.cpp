@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/07_filter.hpp"
+#include "simd_examples/06_filter.hpp"
 #include "simd_common.h"
 
 namespace simd_examples::simd {

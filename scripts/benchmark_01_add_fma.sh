@@ -4,9 +4,9 @@
 set -euo pipefail
 
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-output="${3:-results/01_add.csv}"
+output="${3:-results/01_add_fma.csv}"
 
-exec "$root/scripts/benchmark.sh" 01_add \
+exec "$root/scripts/benchmark.sh" 01_add_fma \
     --size "${1:-16777216}" \
     --repetitions "${2:-10}" \
     --output "$output"
