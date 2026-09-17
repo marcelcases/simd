@@ -20,8 +20,8 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 | [3. Upper-bound clamp](docs/03_clamp/README.md) | Clamps values using comparisons and conditional masks. |
 | [4. Count above threshold](docs/04_count/README.md) | Counts threshold matches with masks and popcount. |
 | [5. Numerically stable softmax](docs/05_softmax/README.md) | Computes stable softmax with vector reductions. |
-| [6. Horizontal image blur](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
-| [7. 1D mathematical convolution](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
+| [6. Horizontal image blur (TODO)](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
+| [7. 1D mathematical convolution (TODO)](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
 ## Key results and performance
 
