@@ -64,13 +64,13 @@ widths of four and eight lanes.
 
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
-| Element-wise addition | 1.64× | 1.66× |
-| Memory-bound FMA | 1.27× | 1.53× |
-| Sum reduction | 1.85× | 4.78× |
-| Dot product | 1.30× | 2.14× |
+| Element-wise addition | 1.66× | 1.68× |
+| Memory-bound FMA | 1.25× | 1.55× |
+| Sum reduction | 1.72× | 4.79× |
+| Dot product | 1.30× | 2.13× |
 | Upper-bound clamp | 3.85× | 2.61× |
 | Count above threshold | 1.29× | 1.98× |
-| Softmax | 1.23× | 1.21× |
+| Softmax | 1.22× | 1.21× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
 
