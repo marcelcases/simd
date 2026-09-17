@@ -26,20 +26,18 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 ## Key results and performance
 
 Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
-elements. Each kernel runs three untimed warm-ups followed by nine outer samples
+elements; softmax uses 4,194,304 elements. Each kernel runs three untimed warm-ups followed by nine outer samples
 of ten inner iterations. Each sample is divided by ten to obtain time per call;
 the reported speedup uses the median sample. Minimum and maximum samples are
 also written to CSV.
 
 Allocation, input generation, and per-sample setup stay outside timed regions.
 Correctness is validated separately from timing. Mutable inputs are restored
-before each outer sample; clamp rotates through preinitialized buffers so every
-inner iteration sees the original value distribution. The longer timed regions
-and warm-ups reduce timer noise, first-call effects, and power-state variation.
-
-Softmax retains the earlier three-trial result with 4,194,304 elements. Its
-smaller input avoids validation loss from float normalization accumulation at
-larger sizes.
+before each outer sample; clamp and softmax rotate through preinitialized
+buffers so every inner iteration sees the original input distribution. The
+longer timed regions and warm-ups reduce timer noise, first-call effects, and
+power-state variation. Softmax uses a smaller input to avoid validation loss
+from float normalization accumulation at larger sizes.
 
 ### x86_64
 
@@ -55,16 +53,16 @@ use explicit `std::experimental::simd` with normal optimization.
 | Dot product | 1.75× | 4.45× |
 | Upper-bound clamp | 6.79× | 10.29× |
 | Count above threshold | 5.14× | 4.19× |
-| Softmax | 1.64× | 4.43× |
+| Softmax | 1.57× | 2.35× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
 
 Among exercises 1–5, reductions, masks, and dot products benefit most. Addition
 and memory FMA are limited mainly by memory traffic.
 
-The normal `icpx` softmax build also auto-vectorizes the scalar exponential
-loop through Intel SVML. With compiler auto-vectorization disabled, its softmax
-speedup was approximately 1.44×.
+The normal `icpx` SIMD softmax build also auto-vectorizes the scalar
+exponential loop through Intel SVML, so its speedup is not solely from the
+explicit SIMD phases.
 
 ### RISC-V
 
@@ -82,7 +80,7 @@ widths of four and eight lanes.
 | Dot product | 1.30× | 2.14× |
 | Upper-bound clamp | 3.85× | 2.61× |
 | Count above threshold | 1.29× | 1.98× |
-| Softmax | 1.23× | 1.22× |
+| Softmax | 1.23× | 1.21× |
 | Horizontal blur | TBD | TBD |
 | 1D convolution | TBD | TBD |
 
