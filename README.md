@@ -26,18 +26,8 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 ## Key results and performance
 
 Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
-elements; softmax uses 4,194,304 elements. Each kernel runs three untimed warm-ups followed by nine outer samples
-of ten inner iterations. Each sample is divided by ten to obtain time per call;
-the reported speedup uses the median sample. Minimum and maximum samples are
-also written to CSV.
-
-Allocation, input generation, and per-sample setup stay outside timed regions.
-Correctness is validated separately from timing. Mutable inputs are restored
-before each outer sample; clamp and softmax rotate through preinitialized
-buffers so every inner iteration sees the original input distribution. The
-longer timed regions and warm-ups reduce timer noise, first-call effects, and
-power-state variation. Softmax uses a smaller input to avoid validation loss
-from float normalization accumulation at larger sizes.
+elements; softmax uses 4,194,304 elements to avoid validation loss from float
+normalization accumulation at larger sizes.
 
 ### x86_64
 
@@ -180,6 +170,22 @@ objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 ```
 
 </details>
+
+## Benchmark methodology
+
+All exercises use three untimed warm-ups and `9 × 10` measured kernel calls:
+nine outer samples with ten inner calls each. For sample `s`, the time per call
+is `t_s = elapsed_s / 10`; the reported time is `median(t_1, ..., t_9)`, and
+speedup is `median_scalar / median_SIMD`. CSV output also includes the minimum
+and maximum sample times.
+
+Nine outer samples are used because an odd sample count has a unique median:
+the fifth sorted observation. With ten samples, the median would require
+averaging observations five and six.
+
+Allocation, input generation, setup, and correctness checks are outside timed
+regions. Mutable inputs are restored between samples. Clamp and softmax use
+preinitialized buffers so every inner call receives the original input.
 
 ## Conclusion
 
