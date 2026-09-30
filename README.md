@@ -95,6 +95,27 @@ separately on `bananaf3-1` (job `327015`), and convolution on the same node
 (job `327058`). Both widths of both kernels contain RVV instructions.
 Convolution timings are retained in `results/benchmark-conv.csv` (not tracked).
 
+## Benchmark methodology
+
+Exercises 1–7 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
+Warm-ups run before every outer sample, outside the timed region.
+For sample `s`, the time per call is `t_s = elapsed_s / 10`;
+the reported time is `median(t_1, ..., t_9)`, and
+speedup is `median_scalar / median_SIMD`. CSV output also includes the minimum
+and maximum sample times.
+
+Nine outer samples are used because an odd sample count has a unique median:
+the fifth sorted observation. With ten samples, the median would require
+averaging observations five and six.
+
+Allocation, input generation, setup, and correctness checks are outside timed
+regions. Mutable inputs are restored before each warm-up and timed batch.
+Clamp and softmax use preinitialized buffers so every timed inner call receives
+the original input. This measures warmed execution, not guaranteed cold-cache
+access; a streaming-memory experiment would require a separate sliding-window
+input design.
+
+
 ## Build
 
 ### Environment
@@ -195,26 +216,6 @@ objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 ```
 
 </details>
-
-## Benchmark methodology
-
-Exercises 1–7 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
-Warm-ups run before every outer sample, outside the timed region.
-For sample `s`, the time per call is `t_s = elapsed_s / 10`;
-the reported time is `median(t_1, ..., t_9)`, and
-speedup is `median_scalar / median_SIMD`. CSV output also includes the minimum
-and maximum sample times.
-
-Nine outer samples are used because an odd sample count has a unique median:
-the fifth sorted observation. With ten samples, the median would require
-averaging observations five and six.
-
-Allocation, input generation, setup, and correctness checks are outside timed
-regions. Mutable inputs are restored before each warm-up and timed batch.
-Clamp and softmax use preinitialized buffers so every timed inner call receives
-the original input. This measures warmed execution, not guaranteed cold-cache
-access; a streaming-memory experiment would require a separate sliding-window
-input design.
 
 ## Conclusion
 
