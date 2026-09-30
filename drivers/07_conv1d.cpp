@@ -10,14 +10,17 @@ namespace {
 
 using exercises::benchmark::OneDimOptions;
 using exercises::benchmark::ParseResult;
+using exercises::benchmark::TimingResult;
 
 void write_csv(std::ostream& output, const OneDimOptions& options,
-               double time, double result, float difference) {
-    output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
+               const TimingResult& timing, double result, float difference) {
+    output << "exercise,kernel,implementation,size,warmups,iterations,samples,median_time_ms,min_time_ms,max_time_ms,result,max_abs_difference\n";
     output << "07_conv1d,convolution,"
            << exercises::benchmark::implementation_name << ","
-           << options.size << "," << options.repetitions << ","
-           << time << "," << result << "," << difference << "\n";
+           << options.size << "," << options.warmups << ","
+           << options.iterations << "," << options.samples << ","
+           << timing.median_ms << "," << timing.minimum_ms << ","
+           << timing.maximum_ms << "," << result << "," << difference << "\n";
 }
 
 } // namespace
@@ -46,11 +49,11 @@ int main(int argc, char** argv) {
 
     exercises::benchmark::reference::convolve_1d(
         input.data(), kernel, expected.data(), options.size, kernel_size);
-    const double time = exercises::benchmark::best_time_ms(
-        [&] {
+    const auto timing = exercises::benchmark::measure_kernel_ms(
+        [] {}, [&] {
             exercises::benchmark::implementation::convolve_1d(
                 input.data(), kernel, output.data(), options.size, kernel_size);
-        }, options.repetitions);
+        }, options.warmups, options.iterations, options.samples);
     const double result = exercises::benchmark::checksum(
         output.begin(), output.begin() + output_size);
     const float difference = exercises::benchmark::max_abs_difference(
@@ -58,7 +61,7 @@ int main(int argc, char** argv) {
 
     const bool written = exercises::benchmark::write_output(
         options.output, [&](std::ostream& output_stream) {
-            write_csv(output_stream, options, time, result, difference);
+            write_csv(output_stream, options, timing, result, difference);
         });
     return written && difference <= 1e-5f ? 0 : 1;
 }

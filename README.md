@@ -21,14 +21,16 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 | [4. Count above threshold](docs/04_count/README.md) | Counts threshold matches with masks and popcount. |
 | [5. Numerically stable softmax](docs/05_softmax/README.md) | Computes stable softmax with vector reductions. |
 | [6. Horizontal image blur](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
-| [7. 1D mathematical convolution (TODO)](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
+| [7. 1D mathematical convolution](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
 ## Key results and performance
 
 Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
 elements; softmax uses 4,194,304 elements to avoid validation loss from float
 normalization accumulation at larger sizes. Horizontal blur uses a
-1920 × 1080 grayscale image (2,073,600 pixels).
+1920 × 1080 grayscale image (2,073,600 pixels). Convolution uses 1,048,576
+floats uniformly distributed between `-1` and `1` (seed `42`) and the fixed
+kernel `[0.25, 0.5, 0.125]`, producing 1,048,574 outputs without padding.
 
 The x86-64 results for exercises 1–5 retain three global warm-ups; reruns
 with per-sample warm-ups are pending. The RISC-V results use per-sample warm-ups.
@@ -39,6 +41,7 @@ Results are from an Intel Xeon Platinum 8480+ on one exclusive MN5 node and one
 pinned CPU core. Scalar targets disable compiler vectorization; SIMD targets
 use explicit `std::experimental::simd` with normal optimization. Horizontal
 blur uses per-sample warm-ups and was measured on `gs24r3b62` (job `46835591`).
+Convolution uses the same methodology on `gs25r1b36` (job `46837624`).
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
@@ -50,7 +53,7 @@ blur uses per-sample warm-ups and was measured on `gs24r3b62` (job `46835591`).
 | Count above threshold | 4.85× | 4.19× |
 | Softmax | 1.57× | 2.35× |
 | Horizontal blur | 2.12× | 1.19× |
-| 1D convolution | TBD | TBD |
+| 1D convolution | 5.89× | 4.03× |
 
 Among exercises 1–5, reductions, masks, and dot products benefit most. Addition
 and memory FMA are limited mainly by memory traffic.
@@ -65,7 +68,7 @@ RISC-V binaries were cross-compiled with conda-forge GCC 16.2 and executed on a
 Banana Pi F3 through the `bananaf3` queue. The target provides RVV 1.0 with a
 256-bit VLEN (`vlenb_bytes=32`). GCC/libstdc++ reports one lane for
 `native_simd<float>` on this target, so the comparison uses fixed-size SIMD
-widths of four and eight lanes. The latest run used `bananaf3-2` (SLURM job
+widths of four and eight lanes. Exercises 1–5 used `bananaf3-2` (SLURM job
 `326981`), with three warm-ups before each of nine samples of ten timed calls.
 Raw timings are generated in `results/benchmark-riscv.csv` (not tracked).
 
@@ -79,14 +82,15 @@ Raw timings are generated in `results/benchmark-riscv.csv` (not tracked).
 | Count above threshold | 1.29× | 1.98× |
 | Softmax | 1.22× | 1.21× |
 | Horizontal blur | 1.62× | 2.08× |
-| 1D convolution | TBD | TBD |
+| 1D convolution | 1.13× | 2.15× |
 
 The `VL=4` and `VL=8` values select software vector widths; they do not change
 the hardware VLEN. The `count_above` SIMD function contained no RVV
 instructions in the final binaries, so its measured gain came from scalar
 unrolling rather than genuine vector execution. Horizontal blur was measured
-separately on `bananaf3-1` (job `327015`); both SIMD builds contain RVV
-instructions.
+separately on `bananaf3-1` (job `327015`), and convolution on the same node
+(job `327058`). Both widths of both kernels contain RVV instructions.
+Convolution timings are retained in `results/benchmark-conv.csv` (not tracked).
 
 ## Build
 
@@ -191,7 +195,7 @@ objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 
 ## Benchmark methodology
 
-Exercises 1–6 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
+Exercises 1–7 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
 Warm-ups run before every outer sample, outside the timed region.
 For sample `s`, the time per call is `t_s = elapsed_s / 10`;
 the reported time is `median(t_1, ..., t_9)`, and
