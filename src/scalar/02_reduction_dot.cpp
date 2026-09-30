@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/02_reduction_dot.hpp"
+#include "exercises/02_reduction_dot.hpp"
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 
 float sum(const float* values, std::size_t size) noexcept {
     float result = 0.f;

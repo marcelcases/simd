@@ -5,12 +5,12 @@
 
 #include <cstddef>
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 float sum(const float* values, std::size_t size) noexcept;
 float dot_product(const float* a, const float* b, std::size_t size) noexcept;
 }
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 float sum(const float* values, std::size_t size) noexcept;
 float dot_product(const float* a, const float* b, std::size_t size) noexcept;
 }

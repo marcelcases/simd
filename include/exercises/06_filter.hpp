@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace simd_examples {
+namespace exercises {
 
 struct ConstImageView {
     int width;
@@ -25,4 +25,4 @@ namespace simd {
 void blur_horizontal(ConstImageView input, ImageView output) noexcept;
 }
 
-} // namespace simd_examples
+} // namespace exercises

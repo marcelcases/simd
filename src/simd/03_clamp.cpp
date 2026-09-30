@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/03_clamp.hpp"
+#include "exercises/03_clamp.hpp"
 #include "simd_common.h"
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 
 void clamp(float* values, std::size_t size, float upper_bound) noexcept {
     using vector_type = native_simd<float>;

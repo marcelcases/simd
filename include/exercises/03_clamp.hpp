@@ -5,10 +5,10 @@
 
 #include <cstddef>
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 void clamp(float* values, std::size_t size, float upper_bound) noexcept;
 }
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 void clamp(float* values, std::size_t size, float upper_bound) noexcept;
 }

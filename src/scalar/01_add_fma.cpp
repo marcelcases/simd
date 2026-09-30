@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/01_add_fma.hpp"
+#include "exercises/01_add_fma.hpp"
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 
 void add(float* destination, const float* source, std::size_t size) noexcept {
     for (std::size_t i = 0; i < size; ++i) {

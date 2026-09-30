@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/06_filter.hpp"
+#include "exercises/06_filter.hpp"
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 
 void blur_horizontal(ConstImageView input, ImageView output) noexcept {
     const int width = input.width;

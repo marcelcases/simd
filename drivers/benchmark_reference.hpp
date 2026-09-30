@@ -12,7 +12,7 @@
 #pragma GCC optimize("no-tree-vectorize", "no-tree-loop-distribute-patterns")
 #endif
 
-namespace simd_examples::benchmark::reference {
+namespace exercises::benchmark::reference {
 
 inline void add(float* destination, const float* source, std::size_t size) noexcept {
     for (std::size_t i = 0; i < size; ++i) destination[i] += source[i];
@@ -107,7 +107,7 @@ inline void convolve_1d(const float* input, const float* kernel, float* output,
     }
 }
 
-} // namespace simd_examples::benchmark::reference
+} // namespace exercises::benchmark::reference
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC pop_options

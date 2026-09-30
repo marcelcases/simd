@@ -5,10 +5,10 @@
 
 #include <cstddef>
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 void softmax(float* values, std::size_t size) noexcept;
 }
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 void softmax(float* values, std::size_t size) noexcept;
 }

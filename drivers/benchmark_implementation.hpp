@@ -11,14 +11,14 @@
 #error "Select an implementation"
 #endif
 
-namespace simd_examples::benchmark {
+namespace exercises::benchmark {
 
 #if defined(SIMD_EXAMPLES_SCALAR)
-namespace implementation = ::simd_examples::scalar;
+namespace implementation = ::exercises::scalar;
 inline constexpr std::string_view implementation_name = "scalar";
 #else
-namespace implementation = ::simd_examples::simd;
+namespace implementation = ::exercises::simd;
 inline constexpr std::string_view implementation_name = "simd";
 #endif
 
-} // namespace simd_examples::benchmark
+} // namespace exercises::benchmark

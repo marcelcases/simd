@@ -8,7 +8,7 @@
 
 namespace stdx = std::experimental;
 
-namespace simd_examples {
+namespace exercises {
 
 template<class T>
 using native_simd = stdx::native_simd<T>;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/04_count.hpp"
+#include "exercises/04_count.hpp"
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 
 std::size_t count_above(const float* values, std::size_t size,
                         float threshold) noexcept {

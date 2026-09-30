@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/01_add_fma.hpp"
+#include "exercises/01_add_fma.hpp"
 #include "simd_common.h"
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 
 void add(float* destination, const float* source, std::size_t size) noexcept {
     using vector_type = native_simd<float>;

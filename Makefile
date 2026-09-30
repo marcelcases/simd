@@ -52,11 +52,11 @@ scalar: $(SCALAR_TARGETS)
 
 simd: $(SIMD_TARGETS)
 
-$(BUILD_DIR)/%_scalar: drivers/%.cpp src/scalar/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS)
+$(BUILD_DIR)/%_scalar: drivers/%.cpp src/scalar/%.cpp include/exercises/%.hpp $(DRIVER_DEPS)
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) $(SCALAR_CXXFLAGS) -DSIMD_EXAMPLES_SCALAR drivers/$*.cpp src/scalar/$*.cpp $(LDLIBS) -o $@
 
-$(BUILD_DIR)/%_simd: drivers/%.cpp src/simd/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS) src/simd_common.h
+$(BUILD_DIR)/%_simd: drivers/%.cpp src/simd/%.cpp include/exercises/%.hpp $(DRIVER_DEPS) src/simd_common.h
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) -DSIMD_EXAMPLES_SIMD drivers/$*.cpp src/simd/$*.cpp $(LDLIBS) -o $@
 
@@ -70,11 +70,11 @@ run-drivers: drivers
 
 riscv: $(RISCV_TARGETS)
 
-$(BUILD_DIR)/%_scalar.riscv: drivers/%.cpp src/scalar/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS)
+$(BUILD_DIR)/%_scalar.riscv: drivers/%.cpp src/scalar/%.cpp include/exercises/%.hpp $(DRIVER_DEPS)
 	@mkdir -p $(BUILD_DIR)
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) $(RISCV_SCALAR_CXXFLAGS) -DSIMD_EXAMPLES_SCALAR drivers/$*.cpp src/scalar/$*.cpp $(RISCV_LDLIBS) -o $@
 
-$(BUILD_DIR)/%_simd.riscv: drivers/%.cpp src/simd/%.cpp include/simd_examples/%.hpp $(DRIVER_DEPS) src/simd_common.h
+$(BUILD_DIR)/%_simd.riscv: drivers/%.cpp src/simd/%.cpp include/exercises/%.hpp $(DRIVER_DEPS) src/simd_common.h
 	@mkdir -p $(BUILD_DIR)
 	$(RISCV_CXX) $(RISCV_CXXFLAGS) -DSIMD_EXAMPLES_SIMD drivers/$*.cpp src/simd/$*.cpp $(RISCV_LDLIBS) -o $@
 

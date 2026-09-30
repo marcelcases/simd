@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/05_softmax.hpp"
+#include "exercises/05_softmax.hpp"
 #include "simd_common.h"
 
 #include <algorithm>
@@ -10,7 +10,7 @@
 namespace {
 
 float find_max(const float* values, std::size_t size) noexcept {
-    using vector_type = simd_examples::native_simd<float>;
+    using vector_type = exercises::native_simd<float>;
     constexpr std::size_t width = vector_type::size();
 
     vector_type maximum(values[0]);
@@ -30,7 +30,7 @@ float find_max(const float* values, std::size_t size) noexcept {
 
 }
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 
 void softmax(float* values, std::size_t size) noexcept {
     using vector_type = native_simd<float>;

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/05_softmax.hpp"
+#include "exercises/05_softmax.hpp"
 
 #include <algorithm>
 #include <cmath>
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 
 void softmax(float* values, std::size_t size) noexcept {
     if (size == 0) {

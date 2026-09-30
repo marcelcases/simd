@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/02_reduction_dot.hpp"
+#include "exercises/02_reduction_dot.hpp"
 #include "simd_common.h"
 
-namespace simd_examples::simd {
+namespace exercises::simd {
 
 float sum(const float* values, std::size_t size) noexcept {
     using vector_type = native_simd<float>;

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 Marcel Cases Freixenet
 
-#include "simd_examples/07_conv1d.hpp"
+#include "exercises/07_conv1d.hpp"
 
-namespace simd_examples::scalar {
+namespace exercises::scalar {
 
 void convolve_1d(const float* input, const float* kernel, float* output,
                  std::size_t size, std::size_t kernel_size) noexcept {

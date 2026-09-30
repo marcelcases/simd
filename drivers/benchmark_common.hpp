@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace simd_examples::benchmark {
+namespace exercises::benchmark {
 
 static volatile std::size_t benchmark_sink = 0;
 
@@ -234,4 +234,4 @@ inline void print_image_usage([[maybe_unused]] std::string_view program) {
               << " [--width N] [--height N] [--repetitions N] [--output FILE]\n";
 }
 
-} // namespace simd_examples::benchmark
+} // namespace exercises::benchmark
