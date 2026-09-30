@@ -86,7 +86,7 @@ the hardware VLEN. The `count_above` SIMD function contained no RVV
 instructions in the final binaries, so its measured gain came from scalar
 unrolling rather than genuine vector execution. Horizontal blur was measured
 separately on `bananaf3-1` (job `327015`); both SIMD builds contain RVV
-instructions. See [exercise 6](docs/06_filter/README.md) for timings.
+instructions.
 
 ## Build
 
