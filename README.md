@@ -13,7 +13,7 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 ## Project structure
 
-| Example | Description |
+| Exercise | Description |
 |---|---|
 | [1. Addition and fused multiply-add (FMA)](docs/01_add_fma/README.md) | Element-wise addition and multiply-add with vector loads and stores. |
 | [2. Reduction and dot product](docs/02_reduction_dot/README.md) | Accumulates sums and products in lanes, then reduces to a scalar. |
