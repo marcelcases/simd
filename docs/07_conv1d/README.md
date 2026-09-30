@@ -29,27 +29,29 @@ mathematical convolution. An asymmetric kernel makes the difference visible.
 
 ## Numerical example
 
-Smooth a signal containing one isolated peak with a symmetric kernel:
+Apply an asymmetric kernel to a signal containing one isolated peak:
 
 ```text
-Input:  [0, 0, 8, 0, 0]
-Kernel: [0.25, 0.5, 0.25]
+Input:           [0, 0, 8, 0, 0]
+Kernel:          [0.25, 0.5, 0.125]
+Applied weights: [0.125, 0.5, 0.25]
 ```
 
 | Input window | Weighted sum | Output |
 |---|---|---:|
-| `[0, 0, 8]` | `0 × 0.25 + 0 × 0.5 + 8 × 0.25` | 2 |
-| `[0, 8, 0]` | `0 × 0.25 + 8 × 0.5 + 0 × 0.25` | 4 |
-| `[8, 0, 0]` | `8 × 0.25 + 0 × 0.5 + 0 × 0.25` | 2 |
+| `[0, 0, 8]` | `0 × 0.125 + 0 × 0.5 + 8 × 0.25` | 2 |
+| `[0, 8, 0]` | `0 × 0.125 + 8 × 0.5 + 0 × 0.25` | 4 |
+| `[8, 0, 0]` | `8 × 0.125 + 0 × 0.5 + 0 × 0.25` | 1 |
 
 ```text
-Output: [2, 4, 2]
+Output: [2, 4, 1]
 ```
 
 The sharp peak becomes smaller and spreads across neighbouring positions.
 There are three outputs because `5 - 3 + 1 = 3`; no partial edge windows are
-computed. This kernel is symmetric, so reversing it does not change its weights.
-For an asymmetric kernel such as `[10, 20]`, the applied weights are `[20, 10]`.
+computed. Reversing the asymmetric kernel matters: without reversal,
+correlation would produce `[1, 4, 2]`. The weights sum to `0.875`, so this
+example also scales the signal rather than forming a normalized average.
 
 ## Kernel workflow
 
