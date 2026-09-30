@@ -23,6 +23,9 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 | [6. Horizontal image blur](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
 | [7. 1D mathematical convolution](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
+Exercises 1–4 are basic; exercises 5–7 are advanced.
+The advanced exercises include numerical examples in their READMEs.
+
 ## Key results and performance
 
 Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
