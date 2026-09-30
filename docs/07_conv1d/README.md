@@ -27,6 +27,22 @@ Many neural-network libraries call their operation convolution but compute
 **correlation**, without reversing the kernel. Our implementation performs
 mathematical convolution. An asymmetric kernel makes the difference visible.
 
+## Kernel workflow
+
+| Step | Scalar | SIMD |
+|---|---|---|
+| Start | Set one sum to zero for an output window | Set every accumulator lane to zero |
+| Accumulate | Read input forwards and kernel backwards; multiply and add | Load shifted input values, broadcast one reversed weight, multiply and add lane-wise |
+| Store | Write one output value | Store one vector of output values |
+| Finish | Continue through all complete windows | Process remaining outputs with a scalar tail |
+
+The outer index `i` selects an output window; the inner index `j` selects a
+position within that window. Each output starts with a fresh sum.
+
+Both kernels require `1 <= kernel_size <= input_size`, valid input and kernel
+buffers, and enough output storage. Output must overlap neither input nor kernel.
+The caller owns the arrays; the kernels only perform computation.
+
 ## Numerical example
 
 Apply an asymmetric kernel to a signal containing one isolated peak:
@@ -52,22 +68,6 @@ There are three outputs because `5 - 3 + 1 = 3`; no partial edge windows are
 computed. Reversing the asymmetric kernel matters: without reversal,
 correlation would produce `[1, 4, 2]`. The weights sum to `0.875`, so this
 example also scales the signal rather than forming a normalized average.
-
-## Kernel workflow
-
-| Step | Scalar | SIMD |
-|---|---|---|
-| Start | Set one sum to zero for an output window | Set every accumulator lane to zero |
-| Accumulate | Read input forwards and kernel backwards; multiply and add | Load shifted input values, broadcast one reversed weight, multiply and add lane-wise |
-| Store | Write one output value | Store one vector of output values |
-| Finish | Continue through all complete windows | Process remaining outputs with a scalar tail |
-
-The outer index `i` selects an output window; the inner index `j` selects a
-position within that window. Each output starts with a fresh sum.
-
-Both kernels require `1 <= kernel_size <= input_size`, valid input and kernel
-buffers, and enough output storage. Output must overlap neither input nor kernel.
-The caller owns the arrays; the kernels only perform computation.
 
 ## SIMD notes
 

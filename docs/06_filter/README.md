@@ -18,6 +18,28 @@ no vertical averaging.
 - Simple image smoothing.
 - Learning stencil operations with overlapping input windows.
 
+## Kernel workflow
+
+| Step | Scalar | SIMD |
+|---|---|---|
+| Select a row | Point to its input and output pixels | Same |
+| Left edge | Average the first two pixels | Same scalar operation |
+| Interior | Average three pixels for one output | Load left, center, and right vectors; average lane-wise |
+| Finish | Average the last two pixels | Process the scalar tail, then the right edge |
+
+The image is logically a 2D matrix stored in a flat array of floats, row by row.
+The driver owns the arrays; the kernel receives pointers and dimensions:
+
+```cpp
+void blur_horizontal(const float* input, float* output,
+                     int width, int height) noexcept;
+```
+
+`source = input + row * width` selects the start of a row. Then
+`source[column]` is equivalent to `input[row * width + column]`.
+Input and output must be valid, non-overlapping buffers, with `width >= 2` and
+`height >= 1`. The driver validates the dimensions.
+
 ## Numerical example
 
 Consider one row with five pixel intensities:
@@ -43,28 +65,6 @@ The peak drops from 9 to 6, while lower neighbouring values rise. Sharp
 differences are softened. The row still contains five pixels: edges average
 two pixels, while the interior uses the fixed three-pixel window.
 Every image row is processed independently.
-
-## Kernel workflow
-
-| Step | Scalar | SIMD |
-|---|---|---|
-| Select a row | Point to its input and output pixels | Same |
-| Left edge | Average the first two pixels | Same scalar operation |
-| Interior | Average three pixels for one output | Load left, center, and right vectors; average lane-wise |
-| Finish | Average the last two pixels | Process the scalar tail, then the right edge |
-
-The image is logically a 2D matrix stored in a flat array of floats, row by row.
-The driver owns the arrays; the kernel receives pointers and dimensions:
-
-```cpp
-void blur_horizontal(const float* input, float* output,
-                     int width, int height) noexcept;
-```
-
-`source = input + row * width` selects the start of a row. Then
-`source[column]` is equivalent to `input[row * width + column]`.
-Input and output must be valid, non-overlapping buffers, with `width >= 2` and
-`height >= 1`. The driver validates the dimensions.
 
 ## SIMD notes
 
