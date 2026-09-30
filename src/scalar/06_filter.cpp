@@ -17,8 +17,7 @@ void blur_horizontal(const float* input, float* output,
             destination[column] =
                 (source[column - 1] + source[column] + source[column + 1]) * inverse_three;
         }
-        destination[width - 1] =
-            (source[width - 2] + source[width - 1]) * 0.5f;
+        destination[width - 1] = (source[width - 2] + source[width - 1]) * 0.5f;
     }
 }
 
