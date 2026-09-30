@@ -10,7 +10,8 @@ void blur_horizontal(const float* input, float* output,
                      int width, int height) noexcept {
     using vector_type = native_simd<float>;
     constexpr int vector_width = vector_type::size();
-    const vector_type one_third(1.f / 3.f);
+    constexpr float inverse_three = 1.f / 3.f;
+    const vector_type scale(inverse_three);
     for (int row = 0; row < height; ++row) {
         const float* source = input + row * width;
         float* destination = output + row * width;
@@ -24,16 +25,15 @@ void blur_horizontal(const float* input, float* output,
             left.copy_from(source + column - 1, stdx::element_aligned);
             center.copy_from(source + column, stdx::element_aligned);
             right.copy_from(source + column + 1, stdx::element_aligned);
-            vector_type result = (left + center + right) * one_third;
+            const vector_type result = (left + center + right) * scale;
             result.copy_to(destination + column, stdx::element_aligned);
         }
 
         for (; column < width - 1; ++column) {
             destination[column] =
-                (source[column - 1] + source[column] + source[column + 1]) / 3.f;
+                (source[column - 1] + source[column] + source[column + 1]) * inverse_three;
         }
-        destination[width - 1] =
-            (source[width - 2] + source[width - 1]) * 0.5f;
+        destination[width - 1] = (source[width - 2] + source[width - 1]) * 0.5f;
     }
 }
 
