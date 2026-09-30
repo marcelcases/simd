@@ -109,8 +109,8 @@ module load gcc/14.1.0_binutils241
 make clean
 make drivers
 
-./build/01_add_fma_scalar --size 16777216 --repetitions 10
-./build/01_add_fma_simd --size 16777216 --repetitions 10
+./build/01_add_fma_scalar --size 16777216
+./build/01_add_fma_simd --size 16777216
 ```
 
 </details>
@@ -126,8 +126,8 @@ module load intel/2025.2
 make clean
 make CXX=icpx drivers
 
-./build/01_add_fma_scalar --size 16777216 --repetitions 10
-./build/01_add_fma_simd --size 16777216 --repetitions 10
+./build/01_add_fma_scalar --size 16777216
+./build/01_add_fma_simd --size 16777216
 ```
 
 </details>
@@ -157,8 +157,7 @@ scripts/benchmark.sh
 ```
 
 The default is nine outer samples, each with three untimed warm-ups and ten
-timed inner calls. Run one
-exercise or override any value when needed:
+timed inner calls. Run one exercise or override any value when needed:
 
 ```bash
 scripts/benchmark.sh 02_reduction_dot \
@@ -190,8 +189,8 @@ objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 
 Exercises 1–5 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
 Warm-ups run before every outer sample, outside the timed region.
-For sample `s`, the time per call
-is `t_s = elapsed_s / 10`; the reported time is `median(t_1, ..., t_9)`, and
+For sample `s`, the time per call is `t_s = elapsed_s / 10`;
+the reported time is `median(t_1, ..., t_9)`, and
 speedup is `median_scalar / median_SIMD`. CSV output also includes the minimum
 and maximum sample times.
 
