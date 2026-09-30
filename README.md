@@ -29,6 +29,9 @@ Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
 elements; softmax uses 4,194,304 elements to avoid validation loss from float
 normalization accumulation at larger sizes.
 
+The x86-64 table retains results with three global warm-ups; refreshed MN5
+measurements are pending system access. The RISC-V table uses per-sample warm-ups.
+
 ### x86_64
 
 Results are from an Intel Xeon Platinum 8480+ on one exclusive MN5 node and one
@@ -60,15 +63,17 @@ RISC-V binaries were cross-compiled with conda-forge GCC 16.2 and executed on a
 Banana Pi F3 through the `bananaf3` queue. The target provides RVV 1.0 with a
 256-bit VLEN (`vlenb_bytes=32`). GCC/libstdc++ reports one lane for
 `native_simd<float>` on this target, so the comparison uses fixed-size SIMD
-widths of four and eight lanes.
+widths of four and eight lanes. The latest run used `bananaf3-2` (SLURM job
+`326981`), with three warm-ups before each of nine samples of ten timed calls.
+Raw timings are generated in `results/benchmark-riscv.csv` (not tracked).
 
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
-| Element-wise addition | 1.66× | 1.68× |
-| Memory-bound FMA | 1.25× | 1.55× |
-| Sum reduction | 1.72× | 4.79× |
-| Dot product | 1.30× | 2.13× |
-| Upper-bound clamp | 3.85× | 2.61× |
+| Element-wise addition | 1.65× | 1.68× |
+| Memory-bound FMA | 1.43× | 1.75× |
+| Sum reduction | 1.84× | 4.51× |
+| Dot product | 1.29× | 2.11× |
+| Upper-bound clamp | 3.83× | 2.61× |
 | Count above threshold | 1.29× | 1.98× |
 | Softmax | 1.22× | 1.21× |
 | Horizontal blur | TBD | TBD |
@@ -151,7 +156,8 @@ scripts/benchmark.sh
 # results/benchmark.csv
 ```
 
-The default is three warm-ups, ten inner calls, and nine outer samples. Run one
+The default is nine outer samples, each with three untimed warm-ups and ten
+timed inner calls. Run one
 exercise or override any value when needed:
 
 ```bash
@@ -182,8 +188,9 @@ objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 
 ## Benchmark methodology
 
-All exercises use three untimed warm-ups and `9 × 10` measured kernel calls:
-nine outer samples with ten inner calls each. For sample `s`, the time per call
+Exercises 1–5 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
+Warm-ups run before every outer sample, outside the timed region.
+For sample `s`, the time per call
 is `t_s = elapsed_s / 10`; the reported time is `median(t_1, ..., t_9)`, and
 speedup is `median_scalar / median_SIMD`. CSV output also includes the minimum
 and maximum sample times.
@@ -193,8 +200,11 @@ the fifth sorted observation. With ten samples, the median would require
 averaging observations five and six.
 
 Allocation, input generation, setup, and correctness checks are outside timed
-regions. Mutable inputs are restored between samples. Clamp and softmax use
-preinitialized buffers so every inner call receives the original input.
+regions. Mutable inputs are restored before each warm-up and timed batch.
+Clamp and softmax use preinitialized buffers so every timed inner call receives
+the original input. This measures warmed execution, not guaranteed cold-cache
+access; a streaming-memory experiment would require a separate sliding-window
+input design.
 
 ## Conclusion
 

@@ -88,14 +88,13 @@ TimingResult measure_kernel_ms(Setup&& setup, F&& function, int warmups,
                                int iterations, int samples) {
     using clock = std::chrono::steady_clock;
 
-    for (int i = 0; i < warmups; ++i) {
-        setup();
-        invoke_benchmark(function);
-    }
-
     std::vector<double> times;
     times.reserve(static_cast<std::size_t>(samples));
     for (int sample = 0; sample < samples; ++sample) {
+        for (int i = 0; i < warmups; ++i) {
+            setup();
+            invoke_benchmark(function);
+        }
         setup();
         const auto start = clock::now();
         for (int iteration = 0; iteration < iterations; ++iteration) {
