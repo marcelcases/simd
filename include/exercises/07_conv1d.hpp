@@ -13,6 +13,7 @@ void convolve_1d(const float* input, const float* kernel, float* output,
 }
 
 namespace exercises::simd {
+// Same buffer and size preconditions as the scalar kernel.
 void convolve_1d(const float* input, const float* kernel, float* output,
-                 std::size_t size, std::size_t kernel_size) noexcept;
+                 std::size_t input_size, std::size_t kernel_size) noexcept;
 }

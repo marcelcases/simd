@@ -7,32 +7,30 @@
 namespace exercises::simd {
 
 void convolve_1d(const float* input, const float* kernel, float* output,
-                 std::size_t size, std::size_t kernel_size) noexcept {
+                 std::size_t input_size, std::size_t kernel_size) noexcept {
     using vector_type = native_simd<float>;
     constexpr std::size_t width = vector_type::size();
-    if (kernel_size == 0 || size < kernel_size) {
-        return;
-    }
-
-    const std::size_t output_size = size - kernel_size + 1;
+    const std::size_t output_size = input_size - kernel_size + 1;
     std::size_t i = 0;
     for (; i + width <= output_size; i += width) {
-        vector_type result(0.f);
+        vector_type sum(0.f);
+
         for (std::size_t j = 0; j < kernel_size; ++j) {
             vector_type input_vector;
             input_vector.copy_from(input + i + j, stdx::element_aligned);
             const vector_type kernel_value(kernel[kernel_size - 1 - j]);
-            result = stdx::fma(input_vector, kernel_value, result);
+            sum += input_vector * kernel_value;
         }
-        result.copy_to(output + i, stdx::element_aligned);
+        sum.copy_to(output + i, stdx::element_aligned);
     }
 
     for (; i < output_size; ++i) {
-        float result = 0.f;
+        float sum = 0.f;
+
         for (std::size_t j = 0; j < kernel_size; ++j) {
-            result += input[i + j] * kernel[kernel_size - 1 - j];
+            sum += input[i + j] * kernel[kernel_size - 1 - j];
         }
-        output[i] = result;
+        output[i] = sum;
     }
 }
 
