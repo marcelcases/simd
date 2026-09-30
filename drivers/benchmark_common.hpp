@@ -223,7 +223,7 @@ inline ParseResult parse_image_options(int argc, char** argv,
         }
     }
 
-    if (options.width < 1 || options.height < 1 || options.repetitions <= 0) {
+    if (options.width < 2 || options.height < 1 || options.repetitions <= 0) {
         return ParseResult::error;
     }
     return ParseResult::success;

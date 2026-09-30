@@ -5,24 +5,17 @@
 
 namespace exercises {
 
-struct ConstImageView {
-    int width;
-    int height;
-    const float* data;
-};
-
-struct ImageView {
-    int width;
-    int height;
-    float* data;
-};
+// Preconditions: width >= 2, height >= 1; valid, non-overlapping buffers
+// containing width * height floats in row-major order.
 
 namespace scalar {
-void blur_horizontal(ConstImageView input, ImageView output) noexcept;
+void blur_horizontal(const float* input, float* output,
+                     int width, int height) noexcept;
 }
 
 namespace simd {
-void blur_horizontal(ConstImageView input, ImageView output) noexcept;
+void blur_horizontal(const float* input, float* output,
+                     int width, int height) noexcept;
 }
 
 } // namespace exercises

@@ -43,15 +43,11 @@ int main(int argc, char** argv) {
 
     exercises::benchmark::reference::blur_horizontal(
         input.data(), expected.data(), options.width, options.height);
-    const exercises::ConstImageView input_view{
-        options.width, options.height, input.data()};
-    const exercises::ImageView output_view{
-        options.width, options.height, output.data()};
 
     const double time = exercises::benchmark::best_time_ms(
         [&] {
             exercises::benchmark::implementation::blur_horizontal(
-                input_view, output_view);
+                input.data(), output.data(), options.width, options.height);
         }, options.repetitions);
     const double result = exercises::benchmark::checksum(
         output.begin(), output.end());
