@@ -201,6 +201,9 @@ struct ImageOptions {
     int width = 1920;
     int height = 1080;
     int repetitions = 10;
+    int warmups = 3;
+    int iterations = 10;
+    int samples = 9;
     std::string output;
 };
 
@@ -214,6 +217,12 @@ inline ParseResult parse_image_options(int argc, char** argv,
             options.height = std::stoi(argv[++i]);
         } else if (argument == "--repetitions" && i + 1 < argc) {
             options.repetitions = std::stoi(argv[++i]);
+        } else if (argument == "--warmups" && i + 1 < argc) {
+            options.warmups = std::stoi(argv[++i]);
+        } else if (argument == "--iterations" && i + 1 < argc) {
+            options.iterations = std::stoi(argv[++i]);
+        } else if (argument == "--samples" && i + 1 < argc) {
+            options.samples = std::stoi(argv[++i]);
         } else if (argument == "--output" && i + 1 < argc) {
             options.output = argv[++i];
         } else if (argument == "--help") {
@@ -223,7 +232,8 @@ inline ParseResult parse_image_options(int argc, char** argv,
         }
     }
 
-    if (options.width < 2 || options.height < 1 || options.repetitions <= 0) {
+    if (options.width < 2 || options.height < 1 || options.repetitions <= 0 ||
+        options.warmups < 0 || options.iterations <= 0 || options.samples <= 0) {
         return ParseResult::error;
     }
     return ParseResult::success;
@@ -231,7 +241,8 @@ inline ParseResult parse_image_options(int argc, char** argv,
 
 inline void print_image_usage([[maybe_unused]] std::string_view program) {
     std::cerr << "Usage: " << program
-              << " [--width N] [--height N] [--repetitions N] [--output FILE]\n";
+              << " [--width N] [--height N] [--warmups N]"
+                 " [--iterations N] [--samples N] [--output FILE]\n";
 }
 
 } // namespace exercises::benchmark

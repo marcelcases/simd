@@ -20,23 +20,25 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 | [3. Upper-bound clamp](docs/03_clamp/README.md) | Clamps values using comparisons and conditional masks. |
 | [4. Count above threshold](docs/04_count/README.md) | Counts threshold matches with masks and popcount. |
 | [5. Numerically stable softmax](docs/05_softmax/README.md) | Computes stable softmax with vector reductions. |
-| [6. Horizontal image blur (TODO)](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
+| [6. Horizontal image blur](docs/06_filter/README.md) | Blurs rows using overlapping loads and scalar borders. |
 | [7. 1D mathematical convolution (TODO)](docs/07_conv1d/README.md) | Convolves with reversed kernels and vectorized outputs. |
 
 ## Key results and performance
 
 Speedup means scalar time divided by SIMD time. Exercises 1–4 use 16,777,216
 elements; softmax uses 4,194,304 elements to avoid validation loss from float
-normalization accumulation at larger sizes.
+normalization accumulation at larger sizes. Horizontal blur uses a
+1920 × 1080 grayscale image (2,073,600 pixels).
 
-The x86-64 table retains results with three global warm-ups; refreshed MN5
-measurements are pending system access. The RISC-V table uses per-sample warm-ups.
+The x86-64 results for exercises 1–5 retain three global warm-ups; reruns
+with per-sample warm-ups are pending. The RISC-V results use per-sample warm-ups.
 
 ### x86_64
 
 Results are from an Intel Xeon Platinum 8480+ on one exclusive MN5 node and one
 pinned CPU core. Scalar targets disable compiler vectorization; SIMD targets
-use explicit `std::experimental::simd` with normal optimization.
+use explicit `std::experimental::simd` with normal optimization. Horizontal
+blur uses per-sample warm-ups and was measured on `gs24r3b62` (job `46835591`).
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
@@ -47,7 +49,7 @@ use explicit `std::experimental::simd` with normal optimization.
 | Upper-bound clamp | 6.81× | 10.29× |
 | Count above threshold | 4.85× | 4.19× |
 | Softmax | 1.57× | 2.35× |
-| Horizontal blur | TBD | TBD |
+| Horizontal blur | 2.12× | 1.19× |
 | 1D convolution | TBD | TBD |
 
 Among exercises 1–5, reductions, masks, and dot products benefit most. Addition
@@ -76,13 +78,15 @@ Raw timings are generated in `results/benchmark-riscv.csv` (not tracked).
 | Upper-bound clamp | 3.83× | 2.61× |
 | Count above threshold | 1.29× | 1.98× |
 | Softmax | 1.22× | 1.21× |
-| Horizontal blur | TBD | TBD |
+| Horizontal blur | 1.62× | 2.08× |
 | 1D convolution | TBD | TBD |
 
 The `VL=4` and `VL=8` values select software vector widths; they do not change
 the hardware VLEN. The `count_above` SIMD function contained no RVV
 instructions in the final binaries, so its measured gain came from scalar
-unrolling rather than genuine vector execution.
+unrolling rather than genuine vector execution. Horizontal blur was measured
+separately on `bananaf3-1` (job `327015`); both SIMD builds contain RVV
+instructions. See [exercise 6](docs/06_filter/README.md) for timings.
 
 ## Build
 
@@ -187,7 +191,7 @@ objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
 
 ## Benchmark methodology
 
-Exercises 1–5 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
+Exercises 1–6 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
 Warm-ups run before every outer sample, outside the timed region.
 For sample `s`, the time per call is `t_s = elapsed_s / 10`;
 the reported time is `median(t_1, ..., t_9)`, and

@@ -10,16 +10,19 @@ namespace {
 
 using exercises::benchmark::ImageOptions;
 using exercises::benchmark::ParseResult;
+using exercises::benchmark::TimingResult;
 
 void write_csv(std::ostream& output, const ImageOptions& options,
-               double time, double result, float difference) {
+               const TimingResult& timing, double result, float difference) {
     const std::size_t pixels =
         static_cast<std::size_t>(options.width) * options.height;
-    output << "exercise,kernel,implementation,size,repetitions,time_ms,result,max_abs_difference\n";
+    output << "exercise,kernel,implementation,size,warmups,iterations,samples,median_time_ms,min_time_ms,max_time_ms,result,max_abs_difference\n";
     output << "06_filter,horizontal_blur,"
            << exercises::benchmark::implementation_name << ","
-           << pixels << "," << options.repetitions << ","
-           << time << "," << result << "," << difference << "\n";
+           << pixels << "," << options.warmups << ","
+           << options.iterations << "," << options.samples << ","
+           << timing.median_ms << "," << timing.minimum_ms << ","
+           << timing.maximum_ms << "," << result << "," << difference << "\n";
 }
 
 } // namespace
@@ -44,11 +47,11 @@ int main(int argc, char** argv) {
     exercises::benchmark::reference::blur_horizontal(
         input.data(), expected.data(), options.width, options.height);
 
-    const double time = exercises::benchmark::best_time_ms(
-        [&] {
+    const auto timing = exercises::benchmark::measure_kernel_ms(
+        [] {}, [&] {
             exercises::benchmark::implementation::blur_horizontal(
                 input.data(), output.data(), options.width, options.height);
-        }, options.repetitions);
+        }, options.warmups, options.iterations, options.samples);
     const double result = exercises::benchmark::checksum(
         output.begin(), output.end());
     const float difference = exercises::benchmark::max_abs_difference(
@@ -56,7 +59,7 @@ int main(int argc, char** argv) {
 
     const bool written = exercises::benchmark::write_output(
         options.output, [&](std::ostream& output_stream) {
-            write_csv(output_stream, options, time, result, difference);
+            write_csv(output_stream, options, timing, result, difference);
         });
     return written && difference <= 1e-5f ? 0 : 1;
 }

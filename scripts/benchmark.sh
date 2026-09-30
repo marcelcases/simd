@@ -17,6 +17,7 @@ completed_exercises=(
     03_clamp
     04_count
     05_softmax
+    06_filter
 )
 
 selection="${1:-all}"
@@ -27,7 +28,7 @@ case "$selection" in
     all)
         exercises=("${completed_exercises[@]}")
         ;;
-    01_add_fma|02_reduction_dot|03_clamp|04_count|05_softmax)
+    01_add_fma|02_reduction_dot|03_clamp|04_count|05_softmax|06_filter)
         exercises=("$selection")
         ;;
     *)
