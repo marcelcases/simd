@@ -35,16 +35,12 @@ normalization accumulation at larger sizes. Horizontal blur uses a
 floats uniformly distributed between `-1` and `1` (seed `42`) and the fixed
 kernel `[0.25, 0.5, 0.125]`, producing 1,048,574 outputs without padding.
 
-The x86-64 results for exercises 1–5 retain three global warm-ups; reruns
-with per-sample warm-ups are pending. The RISC-V results use per-sample warm-ups.
-
 ### x86_64
 
-Results are from an Intel Xeon Platinum 8480+ on one exclusive MN5 node and one
-pinned CPU core. Scalar targets disable compiler vectorization; SIMD targets
-use explicit `std::experimental::simd` with normal optimization. Horizontal
-blur uses per-sample warm-ups and was measured on `gs24r3b62` (job `46835591`).
-Convolution uses the same methodology on `gs25r1b36` (job `46837624`).
+All seven exercises were tested on an Intel Xeon Platinum 8480+ on MN5,
+using GCC 14.1 and `icpx` 2025.2 on one pinned core of an exclusive node.
+Scalar builds disable auto-vectorization; SIMD builds use
+`std::experimental::simd` with normal optimization.
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
@@ -58,8 +54,8 @@ Convolution uses the same methodology on `gs25r1b36` (job `46837624`).
 | Horizontal blur | 2.12× | 1.19× |
 | 1D convolution | 5.89× | 4.03× |
 
-Among exercises 1–5, reductions, masks, and dot products benefit most. Addition
-and memory FMA are limited mainly by memory traffic.
+Reductions, masks, and convolution show substantial gains. Addition and
+memory FMA are limited mainly by memory traffic.
 
 The normal `icpx` SIMD softmax build also auto-vectorizes the scalar
 exponential loop through Intel SVML, so its speedup is not solely from the
@@ -67,13 +63,10 @@ explicit SIMD phases.
 
 ### RISC-V
 
-RISC-V binaries were cross-compiled with conda-forge GCC 16.2 and executed on a
-Banana Pi F3 through the `bananaf3` queue. The target provides RVV 1.0 with a
-256-bit VLEN (`vlenb_bytes=32`). GCC/libstdc++ reports one lane for
-`native_simd<float>` on this target, so the comparison uses fixed-size SIMD
-widths of four and eight lanes. Exercises 1–5 used `bananaf3-2` (SLURM job
-`326981`), with three warm-ups before each of nine samples of ten timed calls.
-Raw timings are generated in `results/benchmark-riscv.csv` (not tracked).
+All seven exercises were cross-compiled with conda-forge GCC 16.2 and tested
+on a Banana Pi F3 through HCA's `bananaf3` queue. It supports RVV 1.0 with a
+256-bit hardware VLEN. GCC/libstdc++ reports one lane for `native_simd<float>`,
+so these tests use fixed-size SIMD widths of four and eight lanes.
 
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
@@ -90,10 +83,8 @@ Raw timings are generated in `results/benchmark-riscv.csv` (not tracked).
 The `VL=4` and `VL=8` values select software vector widths; they do not change
 the hardware VLEN. The `count_above` SIMD function contained no RVV
 instructions in the final binaries, so its measured gain came from scalar
-unrolling rather than genuine vector execution. Horizontal blur was measured
-separately on `bananaf3-1` (job `327015`), and convolution on the same node
-(job `327058`). Both widths of both kernels contain RVV instructions.
-Convolution timings are retained in `results/benchmark-conv.csv` (not tracked).
+unrolling rather than genuine vector execution. Both SIMD widths of horizontal
+blur and convolution contain RVV instructions.
 
 ## Benchmark methodology
 
@@ -103,6 +94,9 @@ For sample `s`, the time per call is `t_s = elapsed_s / 10`;
 the reported time is `median(t_1, ..., t_9)`, and
 speedup is `median_scalar / median_SIMD`. CSV output also includes the minimum
 and maximum sample times.
+
+The x86-64 results for exercises 1–5 used three initial warm-ups rather than
+warm-ups before every sample; those entries have not yet been refreshed.
 
 Nine outer samples are used because an odd sample count has a unique median:
 the fifth sorted observation. With ten samples, the median would require
