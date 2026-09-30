@@ -18,6 +18,32 @@ no vertical averaging.
 - Simple image smoothing.
 - Learning stencil operations with overlapping input windows.
 
+## Numerical example
+
+Consider one row with five pixel intensities:
+
+```text
+Input: [2, 4, 9, 5, 1]
+```
+
+| Position | Calculation | Output |
+|---|---|---:|
+| First | `(2 + 4) / 2` | 3 |
+| Interior | `(2 + 4 + 9) / 3` | 5 |
+| Interior | `(4 + 9 + 5) / 3` | 6 |
+| Interior | `(9 + 5 + 1) / 3` | 5 |
+| Last | `(5 + 1) / 2` | 3 |
+
+```text
+Input:  [2, 4, 9, 5, 1]
+Output: [3, 5, 6, 5, 3]
+```
+
+The peak drops from 9 to 6, while lower neighbouring values rise. Sharp
+differences are softened. The row still contains five pixels: edges average
+two pixels, while the interior uses the fixed three-pixel window.
+Every image row is processed independently.
+
 ## Kernel workflow
 
 | Step | Scalar | SIMD |
