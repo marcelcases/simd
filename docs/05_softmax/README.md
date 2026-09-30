@@ -11,10 +11,8 @@ softmax(x_i) = exp(x_i) / sum(exp(x_j))
 ```
 
 **Numerical stability.** Softmax is shift-invariant:
-`softmax(x - c) = softmax(x)`. For example, subtracting the maximum from
-`[0, 1, 3]` produces `[-3, -2, 0]`; both inputs produce
-`[0.0420, 0.1142, 0.8438]`. The shifted maximum is zero, so every finite
-exponential is at most one. This avoids exponential overflow without changing
+`softmax(x - c) = softmax(x)`. Subtracting the maximum makes the shifted
+maximum zero, so every finite exponential is at most one. This avoids exponential overflow without changing
 the resulting probabilities.
 
 ## Used in
@@ -39,6 +37,23 @@ scalar tail.
 | Compute exponentials | Compute `exp(value - maximum)` per element | Same computation; the source loop uses scalar `std::exp` |
 | Sum exponentials | Add each value to one scalar total | Add vector values lane-wise, then `reduce` to obtain one scalar total |
 | Normalize | Divide each value by the total | Broadcast the total, divide vector values, and store |
+
+## Numerical example
+
+These input logits differ only by a constant offset:
+
+| Step | Input A | Input B |
+|---|---|---|
+| Input | `[0, 1, 3]` | `[5, 6, 8]` |
+| Maximum | `3` | `8` |
+| Subtract maximum | `[-3, -2, 0]` | `[-3, -2, 0]` |
+| Exponentiate | `[0.0498, 0.1353, 1]` | `[0.0498, 0.1353, 1]` |
+| Sum | `1.1851` | `1.1851` |
+| Normalize | `[0.0420, 0.1142, 0.8438]` | `[0.0420, 0.1142, 0.8438]` |
+
+Softmax depends on relative differences, so both produce the same probabilities.
+Values are rounded. Neither small input would overflow directly; subtracting
+the maximum also protects against overflow for large logits.
 
 ## SIMD notes
 
