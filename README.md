@@ -8,7 +8,7 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 - Explicit load–compute–store loops with safe scalar tails.
 - Reductions, masks, FMA, sliding windows, softmax, and convolution.
 - Independent correctness checks and isolated executables.
-- Measured SIMD gains from negligible to about 10×, depending on the bottleneck.
+- Measured SIMD gains from negligible to about 25×, depending on the kernel and system.
 - Final-binary inspection confirms the generated AVX-512 instructions.
 
 ## Project structure
@@ -85,6 +85,40 @@ the hardware VLEN. The `count_above` SIMD function contained no RVV
 instructions in the final binaries, so its measured gain came from scalar
 unrolling rather than genuine vector execution. Both SIMD widths of horizontal
 blur and convolution contain RVV instructions.
+
+### AArch64 — Apple M1 Pro
+
+All seven exercises were measured on this specific MacBook Pro
+(MacBookPro18,3): Apple M1 Pro with eight performance and two efficiency cores,
+16 GB RAM, macOS 27.0.1, and native Homebrew GCC 15.2.0 with libstdc++.
+C++23 builds use `-O3 -mcpu=apple-m1`; scalar builds disable compiler
+vectorization, while SIMD builds retain normal optimization. The verified
+`native_simd<float>` width is four lanes (128-bit NEON).
+
+| Kernel | GCC speedup |
+|---|---:|
+| Element-wise addition | 2.60× |
+| Memory-bound FMA | 1.90× |
+| Sum reduction | 4.00× |
+| Dot product | 3.99× |
+| Upper-bound clamp | 20.00× |
+| Count above threshold | 24.51× |
+| Softmax | 1.55× |
+| Horizontal blur | 4.37× |
+| 1D convolution | 4.02× |
+
+These use the input instances above and the nine-sample methodology below,
+on AC power with Low Power Mode disabled. Independent-reference checks passed
+at benchmark sizes and on small/tail cases. Final-binary inspection confirmed
+NEON inside all nine kernels; softmax's exponential loop remains scalar.
+The large clamp/count gains also reflect replacing branch-heavy scalar loops
+with vector masks, not just the four-lane width.
+
+macOS scheduling was uncontrolled: execution was not pinned to a performance
+core. No thermal/performance warnings were reported, but scheduling and thermal
+variability remain possible. All samples were retained; the largest sample
+maximum/minimum ratio was 1.12. These results describe this system, not AArch64
+processors in general.
 
 ## Benchmark methodology
 

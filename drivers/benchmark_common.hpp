@@ -9,10 +9,12 @@
 #include <cstddef>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <ostream>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -83,6 +85,25 @@ void invoke_benchmark(F& function) {
     }
 }
 
+// Optional audit output, written only after all timed samples have finished.
+// Measurement indices follow the driver's kernel order; samples retain run order.
+inline void record_raw_samples(const std::vector<double>& times, int warmups,
+                               int iterations) {
+    const char* path = std::getenv("SIMD_BENCHMARK_RAW_SAMPLES");
+    if (!path || !*path) return;
+    static std::size_t measurement = 0;
+    std::ofstream output(path, std::ios::app);
+    if (!output) throw std::runtime_error("Cannot write raw benchmark samples");
+    output << std::setprecision(17);
+    for (std::size_t sample = 0; sample < times.size(); ++sample) {
+        output << measurement << ',' << sample << ',' << warmups << ','
+               << iterations << ',' << times.size() << ',' << times[sample] << '\n';
+    }
+    output.flush();
+    if (!output) throw std::runtime_error("Cannot flush raw benchmark samples");
+    ++measurement;
+}
+
 template<class Setup, class F>
 TimingResult measure_kernel_ms(Setup&& setup, F&& function, int warmups,
                                int iterations, int samples) {
@@ -106,6 +127,7 @@ TimingResult measure_kernel_ms(Setup&& setup, F&& function, int warmups,
         times.push_back(elapsed / iterations);
     }
 
+    record_raw_samples(times, warmups, iterations);
     std::sort(times.begin(), times.end());
     return {times[times.size() / 2], times.front(), times.back()};
 }
