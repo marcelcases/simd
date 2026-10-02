@@ -35,7 +35,7 @@ normalization accumulation at larger sizes. Horizontal blur uses a
 floats uniformly distributed between `-1` and `1` (seed `42`) and the fixed
 kernel `[0.25, 0.5, 0.125]`, producing 1,048,574 outputs without padding.
 
-### x86_64
+### x86_64 — MareNostrum 5 GPP (BSC)
 
 All seven exercises were tested on an Intel Xeon Platinum 8480+ on MN5,
 using GCC 14.1 and `icpx` 2025.2 on one pinned core of an exclusive node.
@@ -61,12 +61,13 @@ The normal `icpx` SIMD softmax build also auto-vectorizes the scalar
 exponential loop through Intel SVML, so its speedup is not solely from the
 explicit SIMD phases.
 
-### RISC-V
+### RISC-V — Banana Pi F3 (BSC)
 
 All seven exercises were cross-compiled with conda-forge GCC 16.2 and tested
-on a Banana Pi F3 through HCA's `bananaf3` queue. It supports RVV 1.0 with a
-256-bit hardware VLEN. GCC/libstdc++ reports one lane for `native_simd<float>`,
-so these tests use fixed-size SIMD widths of four and eight lanes.
+on a Banana Pi F3 through the `bananaf3` queue of BSC's Heterogeneous Computer
+Architectures (HCA) infrastructure. The board supports RVV 1.0 with a 256-bit
+hardware VLEN. GCC/libstdc++ reports one lane for `native_simd<float>`, so
+these tests use fixed-size SIMD widths of four and eight lanes.
 
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
@@ -146,67 +147,104 @@ input design.
 
 ## Build
 
-### Environment
+### Requirements
 
-The current build targets x86-64 Linux on MareNostrum 5:
+- GNU Make and a C++23 compiler (`-std=c++2b` in the Makefile is equivalent).
+- libstdc++ with `<experimental/simd>`; the project does not yet use C++26
+  `<simd>`. On macOS, use native Homebrew GCC rather than Apple Clang/libc++.
+- A supported target and appropriate compiler flags. The Makefile's native
+  defaults target MN5's AVX-512 CPU on Linux and Apple M1 on arm64 macOS;
+  they are not generic defaults for every Linux or ARM host.
 
-- Intel Xeon Platinum 8480+ with AVX-512;
-- GCC 14.1.0 or Intel `icpx` 2025.2;
-- C++2b, `-O3`, and `-march=native`;
-- `native_simd<float>::size()` is typically 16 on this CPU.
+Scalar targets disable compiler vectorization; SIMD targets retain normal
+optimization. Use separate build directories for different toolchains, as
+below. When changing the compiler or flags within one directory, use `make -B`
+to force rebuilding: Make does not track changes to command-line flags.
 
-Use a clean module environment when switching compilers. Both builds produce
-the same executable names.
+### MareNostrum 5: GCC and Intel `icpx`
 
-### GCC
+Use a clean module environment for each compiler. These commands use the
+versions recorded in the x86-64 results.
 
 <details>
-<summary>GCC build and run commands</summary>
+<summary>MN5 build commands</summary>
 
 ```bash
+# GCC
 module purge
 module load gcc/14.1.0_binutils241
-make clean
-make drivers
+make CXX=g++ BUILD_DIR=build/gcc drivers
 
-./build/01_add_fma_scalar --size 16777216
-./build/01_add_fma_simd --size 16777216
+# Intel icpx
+module purge
+module load intel/2025.2
+make CXX=icpx BUILD_DIR=build/icpx drivers
 ```
 
 </details>
 
-### Intel `icpx`
+### Apple silicon: Homebrew GCC
+
+Run natively as `arm64`, not under Rosetta. The measured compiler is GCC 15.2;
+replace `g++-15` with the installed versioned Homebrew executable if needed.
+The Makefile uses `-mcpu=apple-m1` on arm64 macOS.
 
 <details>
-<summary>Intel <code>icpx</code> build and run commands</summary>
+<summary>Apple silicon build commands</summary>
+
+```bash
+uname -m  # arm64
+g++-15 --version
+make CXX=g++-15 BUILD_DIR=build/m1-gcc drivers
+```
+
+</details>
+
+### RISC-V: cross-compilation on MN5
+
+Use the conda-forge `hpcbook` toolchain on MN5, then execute the binaries on
+an allocated HCA board. The unqualified `g++` builds for x86-64; select the
+RISC-V-prefixed compiler explicitly.
+
+<details>
+<summary>RISC-V build commands</summary>
 
 ```bash
 module purge
-module load intel/2025.2
-make clean
-make CXX=icpx drivers
+source /apps/GPP/MINICONDA/24.1.2/etc/profile.d/conda.sh
+conda activate hpcbook
+unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH
 
-./build/01_add_fma_scalar --size 16777216
-./build/01_add_fma_simd --size 16777216
+make BUILD_DIR=build/riscv \
+    RISCV_CXX=riscv64-conda-linux-gnu-g++ \
+    RISCV_CXXFLAGS='-std=c++23 -O3 -march=rv64gcv_zvl256b -mrvv-vector-bits=zvl -static -fno-math-errno -fno-trapping-math -Wall -Wextra -Idrivers -Iinclude -Isrc' \
+    riscv
 ```
 
 </details>
 
-Build subsets or run all default drivers with:
+These targets use the source's `native_simd` alias, which reports one lane on
+this toolchain. They do **not** reproduce the fixed-size `VL=4` and `VL=8`
+benchmark variants; those used separate builds with temporary SIMD aliases.
+RVV flags alone do not guarantee vector execution.
 
-<details>
-<summary>Make targets</summary>
+### Run and benchmark
+
+Drivers own input generation, reference checks, timing, and CSV output. For
+example, run the GCC addition/FMA executables with:
 
 ```bash
-make scalar
-make simd
-make run
+./build/gcc/01_add_fma_scalar --size 16777216
+./build/gcc/01_add_fma_simd --size 16777216
 ```
 
-</details>
+`make scalar` and `make simd` build subsets; `make run` runs all drivers using
+the default `build/` directory. Run substantial MN5 workloads on allocated
+compute nodes, not login nodes.
 
-Run all completed exercises with the default methodology and write one unified
-scalar/SIMD CSV:
+The unified script also builds and runs from `build/`, independently of the
+separate directories above. It runs all seven exercises with the default
+methodology and writes one scalar/SIMD CSV:
 
 <details>
 <summary>Benchmark commands</summary>
@@ -230,6 +268,14 @@ scripts/benchmark.sh 02_reduction_dot \
 
 </details>
 
+The script uses the Makefile's platform-default compiler. To select another
+compiler and avoid reusing stale binaries, pass Make overrides through
+`MAKEFLAGS`, with the appropriate compiler environment already loaded:
+
+```bash
+MAKEFLAGS='-B CXX=icpx' scripts/benchmark.sh
+```
+
 ### Inspect generated instructions
 
 Inspect the final executable after linking:
@@ -238,12 +284,20 @@ Inspect the final executable after linking:
 <summary>Inspection commands</summary>
 
 ```bash
-objdump -d -C build/01_add_fma_simd | grep -E 'vaddps|vmov'
-objdump -d -C build/03_clamp_simd | grep -E 'vcmpps|vblend|vmov'
-objdump -d -C build/01_add_fma_simd | grep -E 'vfmadd|vmov'
+# MN5: AVX-512
+objdump -d -C build/gcc/01_add_fma_simd
+
+# macOS: NEON
+otool -tvV build/m1-gcc/01_add_fma_simd
+
+# Cross-compiled RISC-V
+riscv64-conda-linux-gnu-objdump -d -C build/riscv/01_add_fma_simd.riscv
 ```
 
 </details>
+
+Inspect the kernel functions themselves, not just instructions elsewhere in
+the binary. Verify the selected SIMD lane count as well as the generated ISA.
 
 ## Conclusion
 
