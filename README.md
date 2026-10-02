@@ -4,14 +4,19 @@ This project is a compact, benchmark-driven study of explicit SIMD in modern C++
 
 ## TL;DR
 
-- Seven progressively more demanding scalar/SIMD exercises.
-- Explicit load–compute–store loops with safe scalar tails.
-- Reductions, masks, FMA, sliding windows, softmax, and convolution.
-- Independent correctness checks and isolated executables.
-- Measured SIMD gains from negligible to about 25×, depending on the kernel and system.
-- Final-binary inspection confirms the generated AVX-512 instructions.
+- **Learn SIMD:** seven compact scalar/SIMD exercises, from array arithmetic
+  to softmax and convolution.
+- **See the expression:** vector-width groups, loads, lane-wise operations,
+  masks, stores, safe scalar tails, and lane accumulators with horizontal
+  reductions.
+- **Explore portability:** the same C++ kernels tested on x86-64, RISC-V,
+  and AArch64.
+- **Understand performance:** gains from negligible to about 25×; compiler
+  choice, masks, and memory traffic can matter as much as vector width.
+- **Verify the evidence:** independent correctness checks, isolated benchmarks,
+  and final-binary inspection—not just SIMD labels in the source.
 
-## Project structure
+## Exercises
 
 | Exercise | Description |
 |---|---|
@@ -35,12 +40,14 @@ normalization accumulation at larger sizes. Horizontal blur uses a
 floats uniformly distributed between `-1` and `1` (seed `42`) and the fixed
 kernel `[0.25, 0.5, 0.125]`, producing 1,048,574 outputs without padding.
 
+Scalar builds disable compiler vectorization; SIMD builds use
+`std::experimental::simd` with normal optimization. Speedups compare these
+implementations on each system, not the systems' absolute performance.
+
 ### x86_64 — MareNostrum 5 GPP (BSC)
 
-All seven exercises were tested on an Intel Xeon Platinum 8480+ on MN5,
-using GCC 14.1 and `icpx` 2025.2 on one pinned core of an exclusive node.
-Scalar builds disable auto-vectorization; SIMD builds use
-`std::experimental::simd` with normal optimization.
+Intel Xeon Platinum 8480+, GCC 14.1 and `icpx` 2025.2, with one pinned core
+on an exclusive MN5 node.
 
 | Kernel | GCC | `icpx` |
 |---|---:|---:|
@@ -54,20 +61,16 @@ Scalar builds disable auto-vectorization; SIMD builds use
 | Horizontal blur | 2.12× | 1.19× |
 | 1D convolution | 5.89× | 4.03× |
 
-Reductions, masks, and convolution show substantial gains. Addition and
-memory FMA are limited mainly by memory traffic.
-
-The normal `icpx` SIMD softmax build also auto-vectorizes the scalar
-exponential loop through Intel SVML, so its speedup is not solely from the
-explicit SIMD phases.
+Addition and memory FMA are likely memory-traffic-limited. `icpx` also
+vectorizes softmax's scalar exponential loop through Intel SVML, so its
+speedup is not solely from explicit SIMD.
 
 ### RISC-V — Banana Pi F3 (BSC)
 
-All seven exercises were cross-compiled with conda-forge GCC 16.2 and tested
-on a Banana Pi F3 through the `bananaf3` queue of BSC's Heterogeneous Computer
-Architectures (HCA) infrastructure. The board supports RVV 1.0 with a 256-bit
-hardware VLEN. GCC/libstdc++ reports one lane for `native_simd<float>`, so
-these tests use fixed-size SIMD widths of four and eight lanes.
+Cross-compiled with conda-forge GCC 16.2 and run through the `bananaf3` queue
+of BSC's Heterogeneous Computer Architectures (HCA) infrastructure. The board
+supports RVV 1.0 with a 256-bit hardware VLEN. This toolchain reports one lane
+for `native_simd<float>`, so the tests use fixed-size widths of four and eight.
 
 | Kernel | `VL=4` speedup | `VL=8` speedup |
 |---|---:|---:|
@@ -84,16 +87,12 @@ these tests use fixed-size SIMD widths of four and eight lanes.
 The `VL=4` and `VL=8` values select software vector widths; they do not change
 the hardware VLEN. The `count_above` SIMD function contained no RVV
 instructions in the final binaries, so its measured gain came from scalar
-unrolling rather than genuine vector execution. Both SIMD widths of horizontal
-blur and convolution contain RVV instructions.
+unrolling rather than genuine vector execution.
 
 ### AArch64 — Apple M1 Pro
 
-All seven exercises were measured on this specific MacBook Pro
-(MacBookPro18,3): Apple M1 Pro with eight performance and two efficiency cores,
-16 GB RAM, macOS 27.0.1, and native Homebrew GCC 15.2.0 with libstdc++.
-C++23 builds use `-O3 -mcpu=apple-m1`; scalar builds disable compiler
-vectorization, while SIMD builds retain normal optimization. The verified
+Apple M1 Pro with eight performance and two efficiency cores, macOS 27.0.1,
+and native Homebrew GCC 15.2.0 with libstdc++. The verified
 `native_simd<float>` width is four lanes (128-bit NEON).
 
 | Kernel | GCC speedup |
@@ -108,22 +107,17 @@ vectorization, while SIMD builds retain normal optimization. The verified
 | Horizontal blur | 4.37× |
 | 1D convolution | 4.02× |
 
-These use the input instances above and the nine-sample methodology below,
-on AC power with Low Power Mode disabled. Independent-reference checks passed
-at benchmark sizes and on small/tail cases. Final-binary inspection confirmed
-NEON inside all nine kernels; softmax's exponential loop remains scalar.
-The large clamp/count gains also reflect replacing branch-heavy scalar loops
-with vector masks, not just the four-lane width.
+Measured on AC power with Low Power Mode disabled, without performance-core
+pinning or controlled macOS scheduling. These results describe this M1 Pro
+system, not AArch64 processors in general.
 
-macOS scheduling was uncontrolled: execution was not pinned to a performance
-core. No thermal/performance warnings were reported, but scheduling and thermal
-variability remain possible. All samples were retained; the largest sample
-maximum/minimum ratio was 1.12. These results describe this system, not AArch64
-processors in general.
+Softmax's exponential loop remains scalar. The large clamp/count gains also
+reflect replacing branch-heavy scalar decisions with vector masks, not just
+the four-lane width.
 
 ## Benchmark methodology
 
-Exercises 1–7 use `9 × (3 untimed warm-ups + 10 timed inner calls)`.
+Current benchmark defaults are `9 × (3 untimed warm-ups + 10 timed inner calls)`.
 Warm-ups run before every outer sample, outside the timed region.
 For sample `s`, the time per call is `t_s = elapsed_s / 10`;
 the reported time is `median(t_1, ..., t_9)`, and
@@ -134,8 +128,8 @@ The x86-64 results for exercises 1–5 used three initial warm-ups rather than
 warm-ups before every sample; those entries have not yet been refreshed.
 
 Nine outer samples are used because an odd sample count has a unique median:
-the fifth sorted observation. With ten samples, the median would require
-averaging observations five and six.
+the fifth sorted observation. Use odd sample counts when overriding the default;
+the current helper does not average the middle pair for even counts.
 
 Allocation, input generation, setup, and correctness checks are outside timed
 regions. Mutable inputs are restored before each warm-up and timed batch.
@@ -145,120 +139,77 @@ access; a streaming-memory experiment would require a separate sliding-window
 input design.
 
 
-## Build
+## Build and run benchmarks
 
 ### Requirements
 
-- GNU Make and a C++23 compiler (`-std=c++2b` in the Makefile is equivalent).
-- libstdc++ with `<experimental/simd>`; the project does not yet use C++26
-  `<simd>`. On macOS, use native Homebrew GCC rather than Apple Clang/libc++.
-- A supported target and appropriate compiler flags. The Makefile's native
-  defaults target MN5's AVX-512 CPU on Linux and Apple M1 on arm64 macOS;
-  they are not generic defaults for every Linux or ARM host.
+Run commands from the repository root. Use GNU Make and a C++23 compiler
+(`-std=c++2b` in the Makefile is equivalent), with libstdc++ providing
+`<experimental/simd>`. The project does not yet use C++26 `<simd>`.
 
-Scalar targets disable compiler vectorization; SIMD targets retain normal
-optimization. Use separate build directories for different toolchains, as
-below. When changing the compiler or flags within one directory, use `make -B`
-to force rebuilding: Make does not track changes to command-line flags.
+Native Makefile defaults target MN5's AVX-512 CPU on Linux and Apple M1 on
+arm64 macOS; they are not generic defaults for every Linux or ARM host.
 
-### MareNostrum 5: GCC and Intel `icpx`
+### Select a native compiler
 
-Use a clean module environment for each compiler. These commands use the
-versions recorded in the x86-64 results.
+Use a clean compiler environment and choose one setup below. The `compiler`
+variable is used by the build and benchmark commands that follow.
 
 <details>
-<summary>MN5 build commands</summary>
+<summary>MareNostrum 5: GCC</summary>
 
 ```bash
-# GCC
 module purge
 module load gcc/14.1.0_binutils241
-make CXX=g++ BUILD_DIR=build/gcc drivers
-
-# Intel icpx
-module purge
-module load intel/2025.2
-make CXX=icpx BUILD_DIR=build/icpx drivers
+compiler=g++
 ```
 
 </details>
 
-### Apple silicon: Homebrew GCC
+<details>
+<summary>MareNostrum 5: Intel icpx</summary>
 
-Run natively as `arm64`, not under Rosetta. The measured compiler is GCC 15.2;
-replace `g++-15` with the installed versioned Homebrew executable if needed.
-The Makefile uses `-mcpu=apple-m1` on arm64 macOS.
+```bash
+module purge
+module load intel/2025.2
+compiler=icpx
+```
+
+</details>
 
 <details>
-<summary>Apple silicon build commands</summary>
+<summary>Apple silicon: Homebrew GCC</summary>
+
+Run natively as `arm64`, not under Rosetta. Use Homebrew GCC, not Apple
+Clang/libc++; replace `g++-15` with the installed versioned executable if needed.
 
 ```bash
 uname -m  # arm64
-g++-15 --version
-make CXX=g++-15 BUILD_DIR=build/m1-gcc drivers
+compiler=g++-15
 ```
 
 </details>
 
-### RISC-V: cross-compilation on MN5
+### Build, validate, and measure
 
-Use the conda-forge `hpcbook` toolchain on MN5, then execute the binaries on
-an allocated HCA board. The unqualified `g++` builds for x86-64; select the
-RISC-V-prefixed compiler explicitly.
-
-<details>
-<summary>RISC-V build commands</summary>
+On MN5, run benchmarks on allocated compute nodes, not login nodes. Check
+the selected compiler, then build and benchmark all seven exercises:
 
 ```bash
-module purge
-source /apps/GPP/MINICONDA/24.1.2/etc/profile.d/conda.sh
-conda activate hpcbook
-unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH
-
-make BUILD_DIR=build/riscv \
-    RISCV_CXX=riscv64-conda-linux-gnu-g++ \
-    RISCV_CXXFLAGS='-std=c++23 -O3 -march=rv64gcv_zvl256b -mrvv-vector-bits=zvl -static -fno-math-errno -fno-trapping-math -Wall -Wextra -Idrivers -Iinclude -Isrc' \
-    riscv
-```
-
-</details>
-
-These targets use the source's `native_simd` alias, which reports one lane on
-this toolchain. They do **not** reproduce the fixed-size `VL=4` and `VL=8`
-benchmark variants; those used separate builds with temporary SIMD aliases.
-RVV flags alone do not guarantee vector execution.
-
-### Run and benchmark
-
-Drivers own input generation, reference checks, timing, and CSV output. For
-example, run the GCC addition/FMA executables with:
-
-```bash
-./build/gcc/01_add_fma_scalar --size 16777216
-./build/gcc/01_add_fma_simd --size 16777216
-```
-
-`make scalar` and `make simd` build subsets; `make run` runs all drivers using
-the default `build/` directory. Run substantial MN5 workloads on allocated
-compute nodes, not login nodes.
-
-The unified script also builds and runs from `build/`, independently of the
-separate directories above. It runs all seven exercises with the default
-methodology and writes one scalar/SIMD CSV:
-
-<details>
-<summary>Benchmark commands</summary>
-
-```bash
-scripts/benchmark.sh
+"$compiler" --version
+MAKEFLAGS="-B CXX=$compiler" scripts/benchmark.sh
 # results/benchmark.csv
 ```
 
-The default is nine outer samples, each with three untimed warm-ups and ten
-timed inner calls. Run one exercise or override any value when needed:
+The script builds both implementations into `build/`, checks their results,
+and writes one CSV using the methodology above. `-B` forces rebuilding when
+switching compilers or flags; Make does not track those changes. `MAKEFLAGS`
+passes the selected compiler to the script's Make invocation.
+
+Run one exercise or override its instance and timing options:
 
 ```bash
-scripts/benchmark.sh 02_reduction_dot \
+MAKEFLAGS="-B CXX=$compiler" scripts/benchmark.sh 02_reduction_dot \
     --size 16777216 \
     --warmups 3 \
     --iterations 10 \
@@ -266,15 +217,57 @@ scripts/benchmark.sh 02_reduction_dot \
     --output results/02_reduction_dot.csv
 ```
 
-</details>
-
-The script uses the Makefile's platform-default compiler. To select another
-compiler and avoid reusing stale binaries, pass Make overrides through
-`MAKEFLAGS`, with the appropriate compiler environment already loaded:
+Use distinct `--output` paths to retain results from different compilers.
+To build without measuring, or run executables individually:
 
 ```bash
-MAKEFLAGS='-B CXX=icpx' scripts/benchmark.sh
+make -B CXX="$compiler" drivers
+./build/01_add_fma_scalar --size 16777216
+./build/01_add_fma_simd --size 16777216
 ```
+
+Replace the `drivers` target with `scalar` or `simd` to build only one
+implementation. Drivers own generation, reference checks, timing, and CSV output.
+
+### RISC-V: cross-build and run
+
+Use the conda-forge `hpcbook` toolchain on MN5. Select the RISC-V-prefixed
+compiler explicitly; the unqualified `g++` builds for x86-64.
+
+<details>
+<summary>Cross-compilation commands</summary>
+
+```bash
+module purge
+source /apps/GPP/MINICONDA/24.1.2/etc/profile.d/conda.sh
+conda activate hpcbook
+unset CPATH C_INCLUDE_PATH CPLUS_INCLUDE_PATH LIBRARY_PATH
+
+make -B BUILD_DIR=build/riscv \
+    RISCV_CXX=riscv64-conda-linux-gnu-g++ \
+    RISCV_CXXFLAGS='-std=c++23 -O3 -march=rv64gcv_zvl256b -mrvv-vector-bits=zvl -static -fno-math-errno -fno-trapping-math -Wall -Wextra -Idrivers -Iinclude -Isrc' \
+    riscv
+```
+
+</details>
+
+Stage `build/riscv/` under a temporary directory on HCA. On an allocated
+Banana Pi F3, run from that staging directory, for example:
+
+```bash
+mkdir -p results
+./build/riscv/01_add_fma_scalar.riscv --size 16777216 --output results/riscv-add-scalar.csv
+./build/riscv/01_add_fma_simd.riscv --size 16777216 --output results/riscv-add-simd.csv
+```
+
+Copy the CSVs back to the repository's `results/` before removing the staging
+directory.
+
+These targets use the source's `native_simd` alias, which reports one lane on
+this toolchain. They do **not** reproduce the fixed-size `VL=4` and `VL=8`
+benchmark variants; those used separate builds with temporary SIMD aliases.
+RVV flags alone do not guarantee vector execution. The native benchmark script
+cannot execute RISC-V binaries on the x86-64 cross-compilation host.
 
 ### Inspect generated instructions
 
@@ -285,10 +278,10 @@ Inspect the final executable after linking:
 
 ```bash
 # MN5: AVX-512
-objdump -d -C build/gcc/01_add_fma_simd
+objdump -d -C build/01_add_fma_simd
 
 # macOS: NEON
-otool -tvV build/m1-gcc/01_add_fma_simd
+otool -tvV build/01_add_fma_simd
 
 # Cross-compiled RISC-V
 riscv64-conda-linux-gnu-objdump -d -C build/riscv/01_add_fma_simd.riscv
@@ -298,17 +291,6 @@ riscv64-conda-linux-gnu-objdump -d -C build/riscv/01_add_fma_simd.riscv
 
 Inspect the kernel functions themselves, not just instructions elsewhere in
 the binary. Verify the selected SIMD lane count as well as the generated ISA.
-
-## Conclusion
-
-- SIMD processes several values per instruction, not the whole input at once.
-- Explicit SIMD is built from vector loads, lane-wise operations, stores, and a
-  scalar tail.
-- Reductions require partial lane accumulators and horizontal reduction.
-- Compiler choice and generated instructions affect measured performance.
-- Memory bandwidth can dominate even when SIMD computation is available.
-- Correctness validation, benchmarking, and binary inspection must be done
-  together.
 
 ## References and further reading
 
