@@ -294,6 +294,7 @@ the binary. Verify the selected SIMD lane count as well as the generated ISA.
 
 ## References and further reading
 
+- [Everyone Should Know SIMD — Mitchell Hashimoto](https://mitchellh.com/writing/everyone-should-know-simd)
 - [C++ experimental SIMD](https://en.cppreference.com/cpp/experimental/simd)
 - [BSC HCA: nodes and queues](https://repo.hca.bsc.es/gitlab/epi-public/risc-v-software-development-vehicles/-/wikis/HCA-Nodes-and-Queues)
 - [Platform-independent SIMD in Go](https://go.dev/blog/simd-experiment)
