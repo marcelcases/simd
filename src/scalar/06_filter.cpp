@@ -12,7 +12,7 @@ void blur_horizontal(const float* input, float* output,
         const float* source = input + row * width;
         float* destination = output + row * width;
 
-        destination[0] = (source[0] + source[1]) * 0.5f;
+        destination[0] = (source[0] + source[1]) * 0.5f; // source[0] = *(source + 0) hidden pointer arithmetics
         for (int column = 1; column < width - 1; ++column) {
             destination[column] =
                 (source[column - 1] + source[column] + source[column + 1]) * inverse_three;
