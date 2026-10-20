@@ -298,6 +298,7 @@ the binary. Verify the selected SIMD lane count as well as the generated ISA.
 - [C++ experimental SIMD](https://en.cppreference.com/cpp/experimental/simd)
 - [BSC HCA: nodes and queues](https://repo.hca.bsc.es/gitlab/epi-public/risc-v-software-development-vehicles/-/wikis/HCA-Nodes-and-Queues)
 - [Platform-independent SIMD in Go](https://go.dev/blog/simd-experiment)
+- [simdjson: SIMD-accelerated JSON parsing](https://github.com/simdjson/simdjson)
 - [GCC auto-vectorization](https://gcc.gnu.org/projects/tree-ssa/vectorization.html)
 - [Arm NEON intrinsics reference](https://arm-software.github.io/acle/neon_intrinsics/advsimd.html)
 - [Intel Intrinsics Guide](https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.html)
